@@ -29,7 +29,7 @@ namespace InkLocaliser {
                     var path = Path.GetFileNameWithoutExtension(output.Key);
                     var fileContents = JsonSerializer.Serialize(output.Value, jsonOption);
 
-                    File.WriteAllText($"{options.outputFilePath}\\{path}.json", fileContents, new UTF8Encoding(false));
+                    File.WriteAllText($"{options.outputFilePath}\\{path}.json", fileContents, new UTF8Encoding(true));
                     Console.WriteLine($"CSV file written: {options.outputFilePath}\\{path}.json");
                 }
             }

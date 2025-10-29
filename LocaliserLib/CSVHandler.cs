@@ -29,7 +29,7 @@ namespace InkLocaliser
                 foreach (var output in outputs) {
                     var path = Path.GetFileNameWithoutExtension(output.Key);
                     var fileContents = output.Value.ToString();
-                    File.WriteAllText($"{options.outputFilePath}\\{path}.csv", fileContents, new UTF8Encoding(false));
+                    File.WriteAllText($"{options.outputFilePath}\\{path}.csv", fileContents, new UTF8Encoding(true));
                     Console.WriteLine($"CSV file written: {options.outputFilePath}\\{path}.csv");
                 }
             }

@@ -6,7 +6,6 @@ using Ink.Parsed;
 namespace InkLocaliser {
     public class Localiser(Localiser.Options? options = null) {
         private const string TAG_LOC = "id:";
-        private const bool DEBUG_RETAG_FILES = false;
 
         public class Options {
             // If true, retag everything.
@@ -281,11 +280,8 @@ namespace InkLocaliser {
                 }
 
                 // Write out to the input file.
-                var output = String.Join("\n", lines);
-                var outputFilePath = filePath;
-                if (DEBUG_RETAG_FILES) // Debug purposes, copy to a different file instead.
-                    outputFilePath += ".txt";
-                File.WriteAllText(outputFilePath, output, Encoding.UTF8);
+                var output = string.Join("\n", lines);
+                File.WriteAllText(filePath, output, Encoding.UTF8);
                 return true;
             }
             catch (Exception ex) {
