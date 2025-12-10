@@ -60,49 +60,32 @@ Look for every Ink file starting with `start` in the `inkFiles` folder, process 
 `LocaliserTool.exe --folder=inkFiles/ --filePattern=start*.ink --csv=output/strings.csv`
 
 ### Arguments
-* `--folder=<folder>`
-    
-    Root folder to scan for Ink files to localise relative to working dir. 
-    e.g. `--folder=inkFiles/` 
-    Default is the current working dir.
 
-* `--filePattern=<folder>`
+- `--folder=<folder>`: Root folder to scan for Ink files to localise (relative to working dir). e.g. `--folder=inkFiles/`. Default is the current working dir.
 
-    Root folder to scan for Ink files to localise.
-    e.g. `--filePattern=start-*.ink`
-    Default is `*.ink`
+- `--filePattern=<pattern>`: File pattern to match Ink files (e.g. `--filePattern=start-*.ink`). Default is `*.ink`.
 
-* `--csv=<csvFile>`
+- `--csv=<csvFile>`: Path to a CSV file to export all the strings to (relative to working dir). e.g. `--csv=output/strings.csv`. Default is empty (no CSV).
 
-    Path to a CSV file to export all the strings to, relative to working dir.
-    e.g. `--csv=output/strings.csv`
-    Default is empty, so no CSV file will be exported.
+- `--json=<jsonFile>`: Path to a JSON file to export all the strings to (relative to working dir). e.g. `--json=output/strings.json`. Default is empty (no JSON).
 
-* `--json=<jsonFile>`
+- `--bytes=<path>`: Output folder for KVStreamer `.bytes` files. When used together with the normal localisation run, the tool will generate `.bytes` artifacts from the CSV data. Files use GZip compression by default. e.g. `--bytes=output/`.
 
-    Path to a JSON file to export all the strings to, relative to working dir.
-    e.g. `--json=output/strings.json`
-    Default is empty, so no JSON file will be exported.
+- `--bytes-no-compress`: Disable GZip compression for KVStreamer binary files. Use together with `--bytes`.
 
-* `--bytes=<path>`
+- `--bytes-csv=<csvFolder>`: Instead of running the Localiser pipeline, convert all CSV files found in the specified folder into KVStreamer `.bytes` files. By default the tool searches folders recursively (all subdirectories). e.g. `--bytes-csv=output/`.
 
-    Path to a KVStreamer binary format folder to export.
-    Files use GZip compression by default (60-70% size reduction).
-    e.g. `--bytes=output/`
-    Default is empty, so no binary file will be exported.
+- `--bytes-csv-out=<outFolder>`: When using `--bytes-csv`, specify the output folder where the generated `.bytes` files will be written. If omitted, `.bytes` files are written next to their source CSV files (same folder).
 
-* `--bytes-no-compress`
+- `--only-csv-to-bytes`: Run only the CSV→`.bytes` conversion and exit (skip processing Ink files). Use together with `--bytes-csv` and optionally `--bytes-csv-out`.
 
-    Disable GZip compression for KVStreamer binary files.
-    Use with --bytes parameter.
+Notes:
+- CSV discovery for `--bytes-csv` is recursive by default (the tool uses `SearchOption.AllDirectories`). If you need non-recursive behaviour, run the conversion against a single folder that contains only the CSVs you want to convert.
+- `--bytes` (without `--bytes-csv`) will generate `.bytes` as part of the normal localisation run (it uses the CSV output produced from the Ink files).
 
-* `--retag`
+- `--retag`: Regenerate all localisation tag IDs, rather than keep old IDs.
 
-    Regenerate all localisation tag IDs, rather than keep old IDs.
-
-* `--help`
-
-    This help!
+- `--help`: Show this help.
 
 ## Limitations
 As said above, Ink is fully capable of stitching together fragments of sentences, like so:

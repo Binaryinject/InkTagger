@@ -60,49 +60,32 @@ Inkle 的 Ink 语言是一种很好的流程语言，用于将叙事游戏中的
 `LocaliserTool.exe --folder=inkFiles/ --filePattern=start*.ink --csv=output/strings.csv`
 
 ### 参数
-* `--folder=<folder>`
-    
-    要扫描的 Ink 文件的根文件夹，相对于工作目录。
-    例如 `--folder=inkFiles/`
-    默认为当前工作目录。
 
-* `--filePattern=<pattern>`
+- `--folder=<folder>`：要扫描的 Ink 文件的根文件夹（相对于工作目录）。例如 `--folder=inkFiles/`。默认为当前工作目录。
 
-    要扫描的 Ink 文件的文件模式。
-    例如 `--filePattern=start-*.ink`
-    默认为 `*.ink`
+- `--filePattern=<pattern>`：匹配 Ink 文件的文件模式（例如 `--filePattern=start-*.ink`）。默认为 `*.ink`。
 
-* `--csv=<csvPath>`
+- `--csv=<csvPath>`：导出包含所有字符串的 CSV 文件路径（相对于工作目录），例如 `--csv=output/strings.csv`。默认为空（不导出 CSV）。
 
-    导出 CSV 文件的路径（包含所有字符串），相对于工作目录。
-    例如 `--csv=output/strings.csv`
-    默认为空，因此不会导出 CSV 文件。
+- `--json=<jsonPath>`：导出包含所有字符串的 JSON 文件路径（相对于工作目录），例如 `--json=output/strings.json`。默认为空（不导出 JSON）。
 
-* `--json=<jsonPath>`
+- `--bytes=<path>`：生成 KVStreamer `.bytes` 文件的输出文件夹。当与正常本地化流程一起使用时，工具会基于导出的 CSV 生成 `.bytes` 文件。文件默认使用 GZip 压缩。例如 `--bytes=output/`。
 
-    导出 JSON 文件的路径（包含所有字符串），相对于工作目录。
-    例如 `--json=output/strings.json`
-    默认为空，因此不会导出 JSON 文件。
+- `--bytes-no-compress`：禁用 KVStreamer `.bytes` 文件的 GZip 压缩。与 `--bytes` 一起使用。
 
-* `--bytes=<path>`
+- `--bytes-csv=<csvFolder>`：不运行本地化（Ink 处理）流程，而是将指定文件夹中找到的所有 CSV 文件转换为 KVStreamer `.bytes` 文件。默认会递归搜索子目录。示例 `--bytes-csv=output/`。
 
-    导出 KVStreamer 二进制格式文件的路径。
-    文件使用 GZip 压缩（默认启用，可减少 60-70% 的文件大小）。
-    例如 `--bytes=output/`
-    默认为空，因此不会导出二进制文件。
+- `--bytes-csv-out=<outFolder>`：与 `--bytes-csv` 配合使用，指定生成的 `.bytes` 文件写入的输出文件夹。如果省略，则 `.bytes` 文件会写入到源 CSV 所在的同一文件夹。
 
-* `--bytes-no-compress`
+- `--only-csv-to-bytes`：仅运行 CSV→`.bytes` 转换并退出（跳过处理 Ink 文件）。与 `--bytes-csv` 以及可选的 `--bytes-csv-out` 一起使用。
 
-    禁用 KVStreamer 二进制文件的 GZip 压缩。
-    与 `--bytes` 参数一起使用。
+说明：
+- 对于 `--bytes-csv`，CSV 的查找默认是递归的（工具使用 `SearchOption.AllDirectories`）。如果需要非递归行为，请将转换目标指定为仅包含要转换 CSV 的单一文件夹。
+- 在没有使用 `--bytes-csv` 的情况下，`--bytes` 会在正常的本地化运行中基于产生的 CSV 输出生成 `.bytes` 文件。
 
-* `--retag`
+- `--retag`：重新生成所有本地化标签 ID，而不是保留旧 ID。
 
-    重新生成所有本地化标签 ID，而不是保留旧 ID。
-
-* `--help`
-
-    显示帮助信息。
+- `--help`：显示帮助信息。
 
 ## 限制
 如上所述，Ink 完全有能力将句子片段拼接在一起，例如：
