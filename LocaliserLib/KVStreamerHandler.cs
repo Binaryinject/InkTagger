@@ -1,7 +1,7 @@
 using System;
 using System.IO;
 using System.Text;
-using KVStreamer;
+using FSTGame;
 
 namespace InkLocaliser
 {
@@ -55,9 +55,8 @@ namespace InkLocaliser
                         }
 
                         // Step 2: Use KVStreamer to convert CSV to binary format
-                        using (var streamer = new global::KVStreamer.KVStreamer()) {
-                            streamer.CreateBinaryFromCSV(csvFilePath, binaryFilePath, compress: options.compress);
-                        }
+                        // As of KVStreamer v1.2.0 the CreateBinaryFromCSV method is static.
+                        global::FSTGame.KVStreamer.CreateBinaryFromCSV(csvFilePath, binaryFilePath, compress: options.compress);
 
                         Console.WriteLine($"KVStreamer file written: {binaryFilePath}");
                     }
