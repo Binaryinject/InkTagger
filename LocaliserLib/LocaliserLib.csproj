@@ -8,6 +8,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="KVStreamer" Version="1.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Reference Include="ink_compiler">
       <HintPath>../Lib/Inklecate/ink_compiler.dll</HintPath>
     </Reference>

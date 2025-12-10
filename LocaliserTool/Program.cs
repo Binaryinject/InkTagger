@@ -3,6 +3,7 @@
 var options = new Localiser.Options();
 var csvOptions = new CSVHandler.Options();
 var jsonOptions = new JSONHandler.Options();
+var kvStreamerOptions = new KVStreamerHandler.Options();
 
 // ----- Simple Args -----
 foreach (var arg in args)
@@ -17,6 +18,10 @@ foreach (var arg in args)
         csvOptions.outputFilePath = arg.Substring(6);
     else if (arg.StartsWith("--json="))
         jsonOptions.outputFilePath = arg.Substring(7);
+    else if (arg.StartsWith("--bytes="))
+        kvStreamerOptions.outputFilePath = arg.Substring(8);
+    else if (arg.Equals("--bytes-no-compress"))
+        kvStreamerOptions.compress = false;
     else if (arg.Equals("--help") || arg.Equals("-h")) {
         Console.WriteLine("Ink Localiser");
         Console.WriteLine("Arguments:");
@@ -30,6 +35,11 @@ foreach (var arg in args)
         Console.WriteLine("                    Default is empty, so no CSV file will be exported.");
         Console.WriteLine("  --json - Path to a JSON folder to export");
         Console.WriteLine("                      Default is empty, so no JSON file will be exported.");
+        Console.WriteLine("  --bytes - Path to a KVStreamer binary folder to export");
+        Console.WriteLine("                       Default is empty, so no KVStreamer file will be exported.");
+        Console.WriteLine("                       Binary files use GZip compression by default (60-70% size reduction).");
+        Console.WriteLine("  --bytes-no-compress - Disable GZip compression for KVStreamer binary files.");
+        Console.WriteLine("                        Use with --bytes parameter.");
         Console.WriteLine("  --retag - Regenerate all localisation tag IDs, rather than keep old IDs.");
         return 0;
     }
@@ -59,6 +69,16 @@ if (!string.IsNullOrEmpty(jsonOptions.outputFilePath))
     var jsonHandler = new JSONHandler(localiser, jsonOptions);
     if (!jsonHandler.WriteStrings()) {
         Console.Error.WriteLine("Database not written.");
+        return -1;
+    }
+}
+
+// ----- KVStreamer Binary Output -----
+if (!string.IsNullOrEmpty(kvStreamerOptions.outputFilePath))
+{
+    var kvStreamerHandler = new KVStreamerHandler(localiser, kvStreamerOptions);
+    if (!kvStreamerHandler.WriteStrings()) {
+        Console.Error.WriteLine("KVStreamer binary file not written.");
         return -1;
     }
 }
