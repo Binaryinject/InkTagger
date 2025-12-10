@@ -67,7 +67,8 @@ bool ConvertCsvFolder(string inputFolder, string outputFolder, bool compress) {
         }
         if (!System.IO.Directory.Exists(outputFolder)) System.IO.Directory.CreateDirectory(outputFolder);
 
-        var csvFiles = System.IO.Directory.GetFiles(inputFolder, "*.csv", System.IO.SearchOption.TopDirectoryOnly);
+        // Default to recursive scan through all subfolders for CSV files
+        var csvFiles = System.IO.Directory.GetFiles(inputFolder, "*.csv", System.IO.SearchOption.AllDirectories);
         foreach (var csvFile in csvFiles) {
             var fileName = System.IO.Path.GetFileNameWithoutExtension(csvFile);
             var outPath = System.IO.Path.Combine(outputFolder, fileName + ".bytes");
@@ -154,7 +155,8 @@ if (!string.IsNullOrEmpty(kvStreamerCsvInput))
         }
         if (!System.IO.Directory.Exists(outputFolder)) System.IO.Directory.CreateDirectory(outputFolder);
 
-        var csvFiles = System.IO.Directory.GetFiles(inputFolder, "*.csv", System.IO.SearchOption.TopDirectoryOnly);
+        // Default to recursive scan through all subfolders for CSV files
+        var csvFiles = System.IO.Directory.GetFiles(inputFolder, "*.csv", System.IO.SearchOption.AllDirectories);
         foreach (var csvFile in csvFiles) {
             var fileName = System.IO.Path.GetFileNameWithoutExtension(csvFile);
             var outPath = System.IO.Path.Combine(outputFolder, fileName + ".bytes");
