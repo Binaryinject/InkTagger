@@ -70,9 +70,16 @@ bool ConvertCsvFolder(string inputFolder, string outputFolder, bool compress) {
         // Default to recursive scan through all subfolders for CSV files
         var csvFiles = System.IO.Directory.GetFiles(inputFolder, "*.csv", System.IO.SearchOption.AllDirectories);
         foreach (var csvFile in csvFiles) {
-            var fileName = System.IO.Path.GetFileNameWithoutExtension(csvFile);
-            var outPath = System.IO.Path.Combine(outputFolder, fileName + ".bytes");
             try {
+                // Preserve relative subdirectory structure when writing to the output folder.
+                var relativePath = System.IO.Path.GetRelativePath(inputFolder, csvFile);
+                var relativeDir = System.IO.Path.GetDirectoryName(relativePath);
+                var outDirForFile = string.IsNullOrEmpty(relativeDir) ? outputFolder : System.IO.Path.Combine(outputFolder, relativeDir);
+                if (!System.IO.Directory.Exists(outDirForFile)) System.IO.Directory.CreateDirectory(outDirForFile);
+
+                var fileName = System.IO.Path.GetFileNameWithoutExtension(csvFile);
+                var outPath = System.IO.Path.Combine(outDirForFile, fileName + ".bytes");
+
                 global::FSTGame.KVStreamer.CreateBinaryFromCSV(csvFile, outPath, compress: compress);
                 Console.WriteLine($"Converted CSV to .bytes: {csvFile} -> {outPath}");
             }
@@ -148,32 +155,7 @@ if (!string.IsNullOrEmpty(kvStreamerCsvInput))
     var inputFolder = kvStreamerCsvInput;
     var outputFolder = string.IsNullOrWhiteSpace(kvStreamerCsvOutput) ? kvStreamerCsvInput : kvStreamerCsvOutput;
 
-    try {
-        if (!System.IO.Directory.Exists(inputFolder)) {
-            Console.Error.WriteLine($"CSV input folder does not exist: {inputFolder}");
-            return -1;
-        }
-        if (!System.IO.Directory.Exists(outputFolder)) System.IO.Directory.CreateDirectory(outputFolder);
-
-        // Default to recursive scan through all subfolders for CSV files
-        var csvFiles = System.IO.Directory.GetFiles(inputFolder, "*.csv", System.IO.SearchOption.AllDirectories);
-        foreach (var csvFile in csvFiles) {
-            var fileName = System.IO.Path.GetFileNameWithoutExtension(csvFile);
-            var outPath = System.IO.Path.Combine(outputFolder, fileName + ".bytes");
-            try {
-                global::FSTGame.KVStreamer.CreateBinaryFromCSV(csvFile, outPath, compress: kvStreamerOptions.compress);
-                Console.WriteLine($"Converted CSV to .bytes: {csvFile} -> {outPath}");
-            }
-            catch (Exception ex) {
-                Console.Error.WriteLine($"Error converting {csvFile}: {ex.Message}");
-                return -1;
-            }
-        }
-    }
-    catch (Exception ex) {
-        Console.Error.WriteLine($"Error scanning CSV folder: {ex.Message}");
-        return -1;
-    }
+    if (!ConvertCsvFolder(inputFolder, outputFolder, kvStreamerOptions.compress)) return -1;
 }
 
 return 0;
