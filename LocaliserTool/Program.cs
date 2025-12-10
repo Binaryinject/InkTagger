@@ -4,6 +4,8 @@ var options = new Localiser.Options();
 var csvOptions = new CSVHandler.Options();
 var jsonOptions = new JSONHandler.Options();
 var kvStreamerOptions = new KVStreamerHandler.Options();
+var kvStreamerCsvInput = "";
+var kvStreamerCsvOutput = "";
 
 // ----- Simple Args -----
 foreach (var arg in args)
@@ -22,6 +24,10 @@ foreach (var arg in args)
         kvStreamerOptions.outputFilePath = arg.Substring(8);
     else if (arg.Equals("--bytes-no-compress"))
         kvStreamerOptions.compress = false;
+        else if (arg.StartsWith("--bytes-csv="))
+            kvStreamerCsvInput = arg.Substring(12);
+        else if (arg.StartsWith("--bytes-csv-out="))
+            kvStreamerCsvOutput = arg.Substring(16);
     else if (arg.Equals("--help") || arg.Equals("-h")) {
         Console.WriteLine("Ink Localiser");
         Console.WriteLine("Arguments:");
@@ -40,6 +46,9 @@ foreach (var arg in args)
         Console.WriteLine("                       Binary files use GZip compression by default (60-70% size reduction).");
         Console.WriteLine("  --bytes-no-compress - Disable GZip compression for KVStreamer binary files.");
         Console.WriteLine("                        Use with --bytes parameter.");
+            Console.WriteLine("  --bytes-csv=<folder> - Scan a folder for CSV files and convert each to .bytes");
+            Console.WriteLine("                         Example: --bytes-csv=translations/csvs");
+            Console.WriteLine("  --bytes-csv-out=<folder> - Optional output folder for converted .bytes files.");
         Console.WriteLine("  --retag - Regenerate all localisation tag IDs, rather than keep old IDs.");
         return 0;
     }
@@ -79,6 +88,39 @@ if (!string.IsNullOrEmpty(kvStreamerOptions.outputFilePath))
     var kvStreamerHandler = new KVStreamerHandler(localiser, kvStreamerOptions);
     if (!kvStreamerHandler.WriteStrings()) {
         Console.Error.WriteLine("KVStreamer binary file not written.");
+        return -1;
+    }
+}
+
+// ----- CSV -> KVStreamer .bytes Conversion -----
+if (!string.IsNullOrEmpty(kvStreamerCsvInput))
+{
+    var inputFolder = kvStreamerCsvInput;
+    var outputFolder = string.IsNullOrWhiteSpace(kvStreamerCsvOutput) ? kvStreamerCsvInput : kvStreamerCsvOutput;
+
+    try {
+        if (!System.IO.Directory.Exists(inputFolder)) {
+            Console.Error.WriteLine($"CSV input folder does not exist: {inputFolder}");
+            return -1;
+        }
+        if (!System.IO.Directory.Exists(outputFolder)) System.IO.Directory.CreateDirectory(outputFolder);
+
+        var csvFiles = System.IO.Directory.GetFiles(inputFolder, "*.csv", System.IO.SearchOption.TopDirectoryOnly);
+        foreach (var csvFile in csvFiles) {
+            var fileName = System.IO.Path.GetFileNameWithoutExtension(csvFile);
+            var outPath = System.IO.Path.Combine(outputFolder, fileName + ".bytes");
+            try {
+                global::FSTGame.KVStreamer.CreateBinaryFromCSV(csvFile, outPath, compress: kvStreamerOptions.compress);
+                Console.WriteLine($"Converted CSV to .bytes: {csvFile} -> {outPath}");
+            }
+            catch (Exception ex) {
+                Console.Error.WriteLine($"Error converting {csvFile}: {ex.Message}");
+                return -1;
+            }
+        }
+    }
+    catch (Exception ex) {
+        Console.Error.WriteLine($"Error scanning CSV folder: {ex.Message}");
         return -1;
     }
 }
