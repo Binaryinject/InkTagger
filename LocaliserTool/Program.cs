@@ -6,6 +6,7 @@ var jsonOptions = new JSONHandler.Options();
 var kvStreamerOptions = new KVStreamerHandler.Options();
 var kvStreamerCsvInput = "";
 var kvStreamerCsvOutput = "";
+var onlyCsvToBytes = false;
 
 // ----- Simple Args -----
 foreach (var arg in args)
@@ -28,6 +29,8 @@ foreach (var arg in args)
             kvStreamerCsvInput = arg.Substring(12);
         else if (arg.StartsWith("--bytes-csv-out="))
             kvStreamerCsvOutput = arg.Substring(16);
+    else if (arg.Equals("--only-csv-to-bytes"))
+        onlyCsvToBytes = true;
     else if (arg.Equals("--help") || arg.Equals("-h")) {
         Console.WriteLine("Ink Localiser");
         Console.WriteLine("Arguments:");
@@ -49,9 +52,55 @@ foreach (var arg in args)
             Console.WriteLine("  --bytes-csv=<folder> - Scan a folder for CSV files and convert each to .bytes");
             Console.WriteLine("                         Example: --bytes-csv=translations/csvs");
             Console.WriteLine("  --bytes-csv-out=<folder> - Optional output folder for converted .bytes files.");
+        Console.WriteLine("  --only-csv-to-bytes - Only run CSV->.bytes conversion and exit (skip Localiser run).");
         Console.WriteLine("  --retag - Regenerate all localisation tag IDs, rather than keep old IDs.");
         return 0;
     }
+}
+
+// Local function to convert CSV folder to KVStreamer .bytes
+bool ConvertCsvFolder(string inputFolder, string outputFolder, bool compress) {
+    try {
+        if (!System.IO.Directory.Exists(inputFolder)) {
+            Console.Error.WriteLine($"CSV input folder does not exist: {inputFolder}");
+            return false;
+        }
+        if (!System.IO.Directory.Exists(outputFolder)) System.IO.Directory.CreateDirectory(outputFolder);
+
+        var csvFiles = System.IO.Directory.GetFiles(inputFolder, "*.csv", System.IO.SearchOption.TopDirectoryOnly);
+        foreach (var csvFile in csvFiles) {
+            var fileName = System.IO.Path.GetFileNameWithoutExtension(csvFile);
+            var outPath = System.IO.Path.Combine(outputFolder, fileName + ".bytes");
+            try {
+                global::FSTGame.KVStreamer.CreateBinaryFromCSV(csvFile, outPath, compress: compress);
+                Console.WriteLine($"Converted CSV to .bytes: {csvFile} -> {outPath}");
+            }
+            catch (Exception ex) {
+                Console.Error.WriteLine($"Error converting {csvFile}: {ex.Message}");
+                return false;
+            }
+        }
+    }
+    catch (Exception ex) {
+        Console.Error.WriteLine($"Error scanning CSV folder: {ex.Message}");
+        return false;
+    }
+
+    return true;
+}
+
+// If user requested only CSV->bytes conversion, perform it now and exit.
+if (onlyCsvToBytes)
+{
+    if (string.IsNullOrWhiteSpace(kvStreamerCsvInput)) {
+        Console.Error.WriteLine("--only-csv-to-bytes requires --bytes-csv=<folder> to be specified.");
+        return -1;
+    }
+
+    var inputFolder = kvStreamerCsvInput;
+    var outputFolder = string.IsNullOrWhiteSpace(kvStreamerCsvOutput) ? kvStreamerCsvInput : kvStreamerCsvOutput;
+    if (!ConvertCsvFolder(inputFolder, outputFolder, kvStreamerOptions.compress)) return -1;
+    return 0;
 }
 
 // ----- Parse Ink, Update Tags, Build String List -----
