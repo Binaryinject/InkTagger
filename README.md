@@ -1,5 +1,7 @@
 # Ink-Localiser
 
+[English](README.md) | [中文](README.zh-CN.md)
+
 **A simple tool to make it easier to localise or attach voice lines to Ink projects.**
 
 ![Tagged Ink File](docs/demo-tagged.png)
@@ -81,6 +83,18 @@ Look for every Ink file starting with `start` in the `inkFiles` folder, process 
     Path to a JSON file to export all the strings to, relative to working dir.
     e.g. `--json=output/strings.json`
     Default is empty, so no JSON file will be exported.
+
+* `--bytes=<path>`
+
+    Path to a KVStreamer binary format folder to export.
+    Files use GZip compression by default (60-70% size reduction).
+    e.g. `--bytes=output/`
+    Default is empty, so no binary file will be exported.
+
+* `--bytes-no-compress`
+
+    Disable GZip compression for KVStreamer binary files.
+    Use with --bytes parameter.
 
 * `--retag`
 
