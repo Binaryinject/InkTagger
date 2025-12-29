@@ -1,12 +1,13 @@
 ﻿using InkLocaliser;
+using VKV.Compression;
 
 var options = new Localiser.Options();
 var csvOptions = new CSVHandler.Options();
 var jsonOptions = new JSONHandler.Options();
-var kvStreamerOptions = new KVStreamerHandler.Options();
-var kvStreamerCsvInput = "";
-var kvStreamerCsvOutput = "";
-var onlyCsvToBytes = false;
+var vkvOptions = new VKVHandler.Options();
+var vkvCsvInput = "";
+var vkvCsvOutput = "";
+var onlyCsvToVkv = false;
 
 // ----- Simple Args -----
 foreach (var arg in args)
@@ -21,16 +22,16 @@ foreach (var arg in args)
         csvOptions.outputFilePath = arg.Substring(6);
     else if (arg.StartsWith("--json="))
         jsonOptions.outputFilePath = arg.Substring(7);
-    else if (arg.StartsWith("--bytes="))
-        kvStreamerOptions.outputFilePath = arg.Substring(8);
-    else if (arg.Equals("--bytes-no-compress"))
-        kvStreamerOptions.compress = false;
-        else if (arg.StartsWith("--bytes-csv="))
-            kvStreamerCsvInput = arg.Substring(12);
-        else if (arg.StartsWith("--bytes-csv-out="))
-            kvStreamerCsvOutput = arg.Substring(16);
-    else if (arg.Equals("--only-csv-to-bytes"))
-        onlyCsvToBytes = true;
+    else if (arg.StartsWith("--vkv="))
+        vkvOptions.outputFilePath = arg.Substring(6);
+    else if (arg.Equals("--vkv-no-compress"))
+        vkvOptions.compress = false;
+        else if (arg.StartsWith("--vkv-csv="))
+            vkvCsvInput = arg.Substring(10);
+        else if (arg.StartsWith("--vkv-csv-out="))
+            vkvCsvOutput = arg.Substring(14);
+    else if (arg.Equals("--only-csv-to-vkv"))
+        onlyCsvToVkv = true;
     else if (arg.Equals("--help") || arg.Equals("-h")) {
         Console.WriteLine("Ink Localiser");
         Console.WriteLine("Arguments:");
@@ -44,22 +45,22 @@ foreach (var arg in args)
         Console.WriteLine("                    Default is empty, so no CSV file will be exported.");
         Console.WriteLine("  --json - Path to a JSON folder to export");
         Console.WriteLine("                      Default is empty, so no JSON file will be exported.");
-        Console.WriteLine("  --bytes - Path to a KVStreamer binary folder to export");
-        Console.WriteLine("                       Default is empty, so no KVStreamer file will be exported.");
-        Console.WriteLine("                       Binary files use GZip compression by default (60-70% size reduction).");
-        Console.WriteLine("  --bytes-no-compress - Disable GZip compression for KVStreamer binary files.");
-        Console.WriteLine("                        Use with --bytes parameter.");
-            Console.WriteLine("  --bytes-csv=<folder> - Scan a folder for CSV files and convert each to .bytes");
-            Console.WriteLine("                         Example: --bytes-csv=translations/csvs");
-            Console.WriteLine("  --bytes-csv-out=<folder> - Optional output folder for converted .bytes files.");
-        Console.WriteLine("  --only-csv-to-bytes - Only run CSV->.bytes conversion and exit (skip Localiser run).");
+        Console.WriteLine("  --vkv - Path to a VKV binary folder to export");
+        Console.WriteLine("                       Default is empty, so no VKV file will be exported.");
+        Console.WriteLine("                       VKV files use B+Tree based key-value database format.");
+        Console.WriteLine("  --vkv-no-compress - Disable page compression for VKV binary files.");
+        Console.WriteLine("                        Use with --vkv parameter.");
+            Console.WriteLine("  --vkv-csv=<folder> - Scan a folder for CSV files and convert each to .vkv");
+            Console.WriteLine("                         Example: --vkv-csv=translations/csvs");
+            Console.WriteLine("  --vkv-csv-out=<folder> - Optional output folder for converted .vkv files.");
+        Console.WriteLine("  --only-csv-to-vkv - Only run CSV->.vkv conversion and exit (skip Localiser run).");
         Console.WriteLine("  --retag - Regenerate all localisation tag IDs, rather than keep old IDs.");
         return 0;
     }
 }
 
-// Local function to convert CSV folder to KVStreamer .bytes
-bool ConvertCsvFolder(string inputFolder, string outputFolder, bool compress) {
+// Local function to convert CSV folder to VKV .vkv files
+async Task<bool> ConvertCsvFolderAsync(string inputFolder, string outputFolder, bool compress) {
     try {
         if (!System.IO.Directory.Exists(inputFolder)) {
             Console.Error.WriteLine($"CSV input folder does not exist: {inputFolder}");
@@ -67,27 +68,70 @@ bool ConvertCsvFolder(string inputFolder, string outputFolder, bool compress) {
         }
         if (!System.IO.Directory.Exists(outputFolder)) System.IO.Directory.CreateDirectory(outputFolder);
 
-        // Default to recursive scan through all subfolders for CSV files
+        // Collect all CSV files
         var csvFiles = System.IO.Directory.GetFiles(inputFolder, "*.csv", System.IO.SearchOption.AllDirectories);
+        if (csvFiles.Length == 0) {
+            Console.WriteLine("No CSV files found.");
+            return true;
+        }
+
+        // Create a single VKV database with multiple tables
+        var vkvFilePath = System.IO.Path.Combine(outputFolder, "strings.vkv");
+        var builder = new VKV.DatabaseBuilder { PageSize = 4096 };
+
+        // Add Zstandard compression if enabled
+        if (compress) {
+            builder.AddPageFilter(x => {
+                x.AddZstandardCompression();
+            });
+            Console.WriteLine("Zstandard compression enabled");
+        }
+
         foreach (var csvFile in csvFiles) {
             try {
-                // Preserve relative subdirectory structure when writing to the output folder.
+                var fileName = System.IO.Path.GetFileNameWithoutExtension(csvFile);
                 var relativePath = System.IO.Path.GetRelativePath(inputFolder, csvFile);
                 var relativeDir = System.IO.Path.GetDirectoryName(relativePath);
-                var outDirForFile = string.IsNullOrEmpty(relativeDir) ? outputFolder : System.IO.Path.Combine(outputFolder, relativeDir);
-                if (!System.IO.Directory.Exists(outDirForFile)) System.IO.Directory.CreateDirectory(outDirForFile);
+                
+                // Create table name from relative path (replace path separators with underscores)
+                var tableName = string.IsNullOrEmpty(relativeDir) 
+                    ? fileName 
+                    : $"{relativeDir.Replace("\\", "_").Replace("/", "_")}_{fileName}";
 
-                var fileName = System.IO.Path.GetFileNameWithoutExtension(csvFile);
-                var outPath = System.IO.Path.Combine(outDirForFile, fileName + ".bytes");
-
-                global::FSTGame.KVStreamer.CreateBinaryFromCSV(csvFile, outPath, compress: compress);
-                Console.WriteLine($"Converted CSV to .bytes: {csvFile} -> {outPath}");
+                var table = builder.CreateTable(tableName, VKV.KeyEncoding.Ascii);
+                
+                // Read and parse CSV file
+                using (var reader = new System.IO.StreamReader(csvFile)) {
+                    var headerLine = await reader.ReadLineAsync();
+                    // Skip header line (ID,Text)
+                    
+                    int entryCount = 0;
+                    while (!reader.EndOfStream) {
+                        var line = await reader.ReadLineAsync();
+                        if (string.IsNullOrWhiteSpace(line)) continue;
+                        
+                        // Simple CSV parsing (handles quoted values)
+                        var parts = ParseCsvLine(line);
+                        if (parts.Length >= 2) {
+                            var key = parts[0];
+                            var value = parts[1];
+                            var valueBytes = System.Text.Encoding.UTF8.GetBytes(value);
+                            table.Append(key, valueBytes);
+                            entryCount++;
+                        }
+                    }
+                    Console.WriteLine($"Added table '{tableName}' from {csvFile} ({entryCount} entries)");
+                }
             }
             catch (Exception ex) {
-                Console.Error.WriteLine($"Error converting {csvFile}: {ex.Message}");
+                Console.Error.WriteLine($"Error processing {csvFile}: {ex.Message}");
                 return false;
             }
         }
+
+        // Build the final VKV database
+        await builder.BuildToFileAsync(vkvFilePath);
+        Console.WriteLine($"Converted {csvFiles.Length} CSV files to {vkvFilePath}");
     }
     catch (Exception ex) {
         Console.Error.WriteLine($"Error scanning CSV folder: {ex.Message}");
@@ -97,17 +141,45 @@ bool ConvertCsvFolder(string inputFolder, string outputFolder, bool compress) {
     return true;
 }
 
-// If user requested only CSV->bytes conversion, perform it now and exit.
-if (onlyCsvToBytes)
+// Simple CSV line parser that handles quoted fields
+string[] ParseCsvLine(string line) {
+    var result = new List<string>();
+    var current = new System.Text.StringBuilder();
+    var inQuotes = false;
+    
+    for (int i = 0; i < line.Length; i++) {
+        var c = line[i];
+        
+        if (c == '"') {
+            if (inQuotes && i + 1 < line.Length && line[i + 1] == '"') {
+                current.Append('"');
+                i++; // Skip next quote
+            } else {
+                inQuotes = !inQuotes;
+            }
+        } else if (c == ',' && !inQuotes) {
+            result.Add(current.ToString());
+            current.Clear();
+        } else {
+            current.Append(c);
+        }
+    }
+    
+    result.Add(current.ToString());
+    return result.ToArray();
+}
+
+// If user requested only CSV->vkv conversion, perform it now and exit.
+if (onlyCsvToVkv)
 {
-    if (string.IsNullOrWhiteSpace(kvStreamerCsvInput)) {
-        Console.Error.WriteLine("--only-csv-to-bytes requires --bytes-csv=<folder> to be specified.");
+    if (string.IsNullOrWhiteSpace(vkvCsvInput)) {
+        Console.Error.WriteLine("--only-csv-to-vkv requires --vkv-csv=<folder> to be specified.");
         return -1;
     }
 
-    var inputFolder = kvStreamerCsvInput;
-    var outputFolder = string.IsNullOrWhiteSpace(kvStreamerCsvOutput) ? kvStreamerCsvInput : kvStreamerCsvOutput;
-    if (!ConvertCsvFolder(inputFolder, outputFolder, kvStreamerOptions.compress)) return -1;
+    var inputFolder = vkvCsvInput;
+    var outputFolder = string.IsNullOrWhiteSpace(vkvCsvOutput) ? vkvCsvInput : vkvCsvOutput;
+    if (!await ConvertCsvFolderAsync(inputFolder, outputFolder, vkvOptions.compress)) return -1;
     return 0;
 }
 
@@ -139,23 +211,23 @@ if (!string.IsNullOrEmpty(jsonOptions.outputFilePath))
     }
 }
 
-// ----- KVStreamer Binary Output -----
-if (!string.IsNullOrEmpty(kvStreamerOptions.outputFilePath))
+// ----- VKV Binary Output -----
+if (!string.IsNullOrEmpty(vkvOptions.outputFilePath))
 {
-    var kvStreamerHandler = new KVStreamerHandler(localiser, kvStreamerOptions);
-    if (!kvStreamerHandler.WriteStrings()) {
-        Console.Error.WriteLine("KVStreamer binary file not written.");
+    var vkvHandler = new VKVHandler(localiser, vkvOptions);
+    if (!vkvHandler.WriteStrings()) {
+        Console.Error.WriteLine("VKV binary file not written.");
         return -1;
     }
 }
 
-// ----- CSV -> KVStreamer .bytes Conversion -----
-if (!string.IsNullOrEmpty(kvStreamerCsvInput))
+// ----- CSV -> VKV .vkv Conversion -----
+if (!string.IsNullOrEmpty(vkvCsvInput))
 {
-    var inputFolder = kvStreamerCsvInput;
-    var outputFolder = string.IsNullOrWhiteSpace(kvStreamerCsvOutput) ? kvStreamerCsvInput : kvStreamerCsvOutput;
+    var inputFolder = vkvCsvInput;
+    var outputFolder = string.IsNullOrWhiteSpace(vkvCsvOutput) ? vkvCsvInput : vkvCsvOutput;
 
-    if (!ConvertCsvFolder(inputFolder, outputFolder, kvStreamerOptions.compress)) return -1;
+    if (!await ConvertCsvFolderAsync(inputFolder, outputFolder, vkvOptions.compress)) return -1;
 }
 
 return 0;
