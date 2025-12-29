@@ -26,6 +26,8 @@ foreach (var arg in args)
         vkvOptions.outputFilePath = arg.Substring(6);
     else if (arg.Equals("--vkv-no-compress"))
         vkvOptions.compress = false;
+    else if (arg.StartsWith("--vkv-table-prefix="))
+        vkvOptions.tablePrefix = arg.Substring(19);
         else if (arg.StartsWith("--vkv-csv="))
             vkvCsvInput = arg.Substring(10);
         else if (arg.StartsWith("--vkv-csv-out="))
@@ -50,6 +52,8 @@ foreach (var arg in args)
         Console.WriteLine("                       VKV files use B+Tree based key-value database format.");
         Console.WriteLine("  --vkv-no-compress - Disable page compression for VKV binary files.");
         Console.WriteLine("                        Use with --vkv parameter.");
+        Console.WriteLine("  --vkv-table-prefix=<prefix> - Add prefix to all table names in VKV database.");
+        Console.WriteLine("                                  Example: --vkv-table-prefix=loc_");
             Console.WriteLine("  --vkv-csv=<folder> - Scan a folder for CSV files and convert each to .vkv");
             Console.WriteLine("                         Example: --vkv-csv=translations/csvs");
             Console.WriteLine("  --vkv-csv-out=<folder> - Optional output folder for converted .vkv files.");

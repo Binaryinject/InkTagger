@@ -11,6 +11,7 @@ namespace InkLocaliser
         public class Options {
             public string outputFilePath = "";
             public bool compress = true;
+            public string tablePrefix = ""; // Prefix for table names
         }
 
         /// <summary>
@@ -62,6 +63,12 @@ namespace InkLocaliser
                     // Note: Using KeyEncoding.Ascii for string keys (UTF-8 values are still supported in values)
                     foreach (var output in outputs) {
                         var tableName = Path.GetFileNameWithoutExtension(output.Key);
+                        
+                        // Add prefix to table name if specified
+                        if (!string.IsNullOrEmpty(options.tablePrefix)) {
+                            tableName = options.tablePrefix + tableName;
+                        }
+                        
                         var table = builder.CreateTable(tableName, KeyEncoding.Ascii);
                         
                         // Append all key-value pairs for this table
