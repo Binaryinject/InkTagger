@@ -1,0 +1,23 @@
+﻿{
+  "test_UZ4B": "Top level?",
+  "test_Intro_HXPR": "A normal line.",
+  "test_Intro_FH00": "Test1",
+  "test_Intro_6N2J": "Something inside a choice is this hard.",
+  "test_Intro_SAHM": "Test2",
+  "test_Intro_RHRZ": "Buckles.",
+  "test_Intro_0IXT": "Something else inside a choice2.",
+  "test_Intro_BTD3": "Booyah.",
+  "test_Intro_5SDF": "Carry on.",
+  "test_Intro_02F6": "Does it work inside brackets?",
+  "test_Intro_NHZE": "Let's do some branching - \"do quotes and, commas work?\" (\"\" ,,):",
+  "test_Intro_Branch_K424": "Here's a branch.",
+  "test_Intro_Branch_V3CW": "Some var {something} work for errors?",
+  "test_Intro_Branch_FQME": "Hello.",
+  "test_Intro_Branch_84DD": "One.",
+  "test_Intro_Branch_GPN7": "Three.",
+  "test_Intro_Branch_2ISF": "Something else.",
+  "test_Intro_Branch_549R": "Greater than 0!",
+  "test_Intro_Branch_9LGB": "Less than or equals 0!",
+  "test_Ending1_VG9V": "This is ending 1.",
+  "test_Ending2_4DCP": "This is ending 2."
+}

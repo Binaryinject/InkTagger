@@ -60,7 +60,7 @@ namespace InkLocaliser
                     }
 
                     // Create a table for each source file
-                    // Note: Using KeyEncoding.Ascii for string keys (UTF-8 values are still supported in values)
+                    // Using KeyEncoding.Ascii - Unity should query with string keys, not byte arrays
                     foreach (var output in outputs) {
                         var tableName = Path.GetFileNameWithoutExtension(output.Key);
                         
@@ -72,9 +72,12 @@ namespace InkLocaliser
                         var table = builder.CreateTable(tableName, KeyEncoding.Ascii);
                         
                         // Append all key-value pairs for this table
+                        // Keys: string (Ascii encoding)
+                        // Values: UTF-8 bytes
                         foreach (var kvp in output.Value) {
+                            var keyBytes = Encoding.UTF8.GetBytes(kvp.Key);
                             var valueBytes = Encoding.UTF8.GetBytes(kvp.Value);
-                            table.Append(kvp.Key, valueBytes);
+                            table.Append(keyBytes, valueBytes);
                         }
                         
                         Console.WriteLine($"Added table '{tableName}' with {output.Value.Count} entries");
