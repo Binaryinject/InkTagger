@@ -1,4 +1,4 @@
-# Ink-Localiser
+# InkTagger
 
 [English](README.md) | [中文](README.zh-CN.md)
 
@@ -53,11 +53,11 @@ This is a command-line utility with a few arguments. A few simple examples:
 
 Look for every Ink file in the `inkFiles` folder, process them for IDs, and output the data in the file `output/strings.json`:
 
-`LocaliserTool.exe --folder=inkFiles/ --json=output/strings.json`
+`InkTagger.exe --folder=inkFiles/ --json=output/strings.json`
 
 Look for every Ink file starting with `start` in the `inkFiles` folder, process them for IDs, and output the data in the file `output/strings.csv`:
 
-`LocaliserTool.exe --folder=inkFiles/ --filePattern=start*.ink --csv=output/strings.csv`
+`InkTagger.exe --folder=inkFiles/ --filePattern=start*.ink --csv=output/strings.csv`
 
 ### Arguments
 
@@ -69,19 +69,21 @@ Look for every Ink file starting with `start` in the `inkFiles` folder, process 
 
 - `--json=<jsonFile>`: Path to a JSON file to export all the strings to (relative to working dir). e.g. `--json=output/strings.json`. Default is empty (no JSON).
 
-- `--bytes=<path>`: Output folder for KVStreamer `.bytes` files. When used together with the normal localisation run, the tool will generate `.bytes` artifacts from the CSV data. Files use GZip compression by default. e.g. `--bytes=output/`.
+- `--vkv=<path>`: Output folder for VKV `.vkv` database files. When used together with the normal localisation run, the tool will generate `.vkv` artifacts from the CSV data. Files use Zstandard page compression by default. VKV is a B+Tree based key-value database format optimized for read-only embedded use. e.g. `--vkv=output/`.
 
-- `--bytes-no-compress`: Disable GZip compression for KVStreamer binary files. Use together with `--bytes`.
+- `--vkv-no-compress`: Disable Zstandard compression for VKV binary files. Use together with `--vkv`.
 
-- `--bytes-csv=<csvFolder>`: Instead of running the Localiser pipeline, convert all CSV files found in the specified folder into KVStreamer `.bytes` files. By default the tool searches folders recursively (all subdirectories). e.g. `--bytes-csv=output/`.
+- `--vkv-table-prefix=<prefix>`: Add a prefix to all table names in the VKV database. e.g. `--vkv-table-prefix=loc_`.
 
-- `--bytes-csv-out=<outFolder>`: When using `--bytes-csv`, specify the output folder where the generated `.bytes` files will be written. If omitted, `.bytes` files are written next to their source CSV files (same folder).
+- `--vkv-csv=<csvFolder>`: Instead of running the Localiser pipeline, convert all CSV files found in the specified folder into VKV `.vkv` files. By default the tool searches folders recursively (all subdirectories). e.g. `--vkv-csv=output/`.
 
-- `--only-csv-to-bytes`: Run only the CSV→`.bytes` conversion and exit (skip processing Ink files). Use together with `--bytes-csv` and optionally `--bytes-csv-out`.
+- `--vkv-csv-out=<outFolder>`: When using `--vkv-csv`, specify the output folder where the generated `.vkv` files will be written. If omitted, `.vkv` files are written next to their source CSV files (same folder).
+
+- `--only-csv-to-vkv`: Run only the CSV→`.vkv` conversion and exit (skip processing Ink files). Use together with `--vkv-csv` and optionally `--vkv-csv-out`.
 
 Notes:
-- CSV discovery for `--bytes-csv` is recursive by default (the tool uses `SearchOption.AllDirectories`). If you need non-recursive behaviour, run the conversion against a single folder that contains only the CSVs you want to convert.
-- `--bytes` (without `--bytes-csv`) will generate `.bytes` as part of the normal localisation run (it uses the CSV output produced from the Ink files).
+- CSV discovery for `--vkv-csv` is recursive by default (the tool uses `SearchOption.AllDirectories`). If you need non-recursive behaviour, run the conversion against a single folder that contains only the CSVs you want to convert.
+- `--vkv` (without `--vkv-csv`) will generate `.vkv` as part of the normal localisation run (it uses the CSV output produced from the Ink files).
 
 - `--retag`: Regenerate all localisation tag IDs, rather than keep old IDs.
 
@@ -114,7 +116,7 @@ Ink is still extremely powerful and we use it for lots of other flow use-cases. 
 ## Use in Development
 Develop your Ink as normal! Treat that as the 'master copy' of your game, the source of truth for the flow and your primary language content.
 
-Use LocaliserTool to add IDs to your Ink file and to extract a file of the content. Get that file localised/translated as you need for your title. Remember that you can re-run LocaliserTool every time you alter your Ink files and everything will be updated.
+Use InkTagger to add IDs to your Ink file and to extract a file of the content. Get that file localised/translated as you need for your title. Remember that you can re-run InkTagger every time you alter your Ink files and everything will be updated.
 
 At runtime, load your Ink content, and also load the appropriate JSON or CSV (which should depend on your localisation). 
 
@@ -182,7 +184,7 @@ The IDs are constructed like this:
 This is mainly to make it easy during development to figure out where a line originated in the Ink files - it's fairly arbitrary, so IDs can be moved around safely without changing (even if the lookup will then be unhelpful). You can always delete an ID and let it regenerate if you want something more appropriate to the place where you've moved a line.
 
 ## Releases
-You can find releases for various platforms [here](https://github.com/wildwinter/Ink-Localiser/releases
+You can find releases for various platforms [here](https://github.com/wildwinter/InkTagger/releases
 ).
 
 There's also a Lib version if you want to be able to access it via the DLL as part of your toolchain. The DLL depends on Inkle's `ink_compiler.dll` and `ink-engine-runtime.dll`.

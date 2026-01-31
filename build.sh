@@ -7,7 +7,7 @@ targets=("osx-arm64" "osx-x64" "win-x86" "win-x64")
 
 for target in "${targets[@]}"; do
 
-    cd LocaliserTool
+    cd InkTagger
     dotnet publish -c Release -r ${target} -o ../publish/${target}
     cd ..
 
@@ -17,15 +17,15 @@ for target in "${targets[@]}"; do
     cp -r ./docs ./publish/${target}
 
     cd ./publish/${target}
-    zip -r "../LocaliserTool-${target}-${version}".zip .
+    zip -r "../InkTagger-${target}-${version}".zip .
     cd ../..
 
 done
 
 mkdir ./publish/dll
-cp ./LocaliserLib/bin/Release/net8.0/LocaliserLib.dll ./publish/dll
+cp ./InkTaggerLib/bin/Release/net8.0/InkTaggerLib.dll ./publish/dll
 cp ./LICENSE ./publish/dll
 
 cd ./publish/dll
-zip -r "../LocaliserLib-${version}.zip" .
+zip -r "../InkTaggerLib-${version}.zip" .
 cd ../..

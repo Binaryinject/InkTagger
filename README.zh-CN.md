@@ -1,4 +1,4 @@
-# Ink-Localiser
+# InkTagger
 
 [English](README.md) | [中文](README.zh-CN.md)
 
@@ -53,11 +53,11 @@ Inkle 的 Ink 语言是一种很好的流程语言，用于将叙事游戏中的
 
 在 `inkFiles` 文件夹中查找每个 Ink 文件，为其处理 ID，并将数据输出到 `output/strings.json` 文件：
 
-`LocaliserTool.exe --folder=inkFiles/ --json=output/strings.json`
+`InkTagger.exe --folder=inkFiles/ --json=output/strings.json`
 
 在 `inkFiles` 文件夹中查找每个以 `start` 开头的 Ink 文件，为其处理 ID，并将数据输出到 `output/strings.csv` 文件：
 
-`LocaliserTool.exe --folder=inkFiles/ --filePattern=start*.ink --csv=output/strings.csv`
+`InkTagger.exe --folder=inkFiles/ --filePattern=start*.ink --csv=output/strings.csv`
 
 ### 参数
 
@@ -69,19 +69,21 @@ Inkle 的 Ink 语言是一种很好的流程语言，用于将叙事游戏中的
 
 - `--json=<jsonPath>`：导出包含所有字符串的 JSON 文件路径（相对于工作目录），例如 `--json=output/strings.json`。默认为空（不导出 JSON）。
 
-- `--bytes=<path>`：生成 KVStreamer `.bytes` 文件的输出文件夹。当与正常本地化流程一起使用时，工具会基于导出的 CSV 生成 `.bytes` 文件。文件默认使用 GZip 压缩。例如 `--bytes=output/`。
+- `--vkv=<path>`：生成 VKV `.vkv` 数据库文件的输出文件夹。当与正常本地化流程一起使用时，工具会基于导出的 CSV 生成 `.vkv` 文件。文件默认使用 Zstandard 页面压缩。VKV 是一种基于 B+Tree 的键值数据库格式，针对只读嵌入式使用进行了优化。例如 `--vkv=output/`。
 
-- `--bytes-no-compress`：禁用 KVStreamer `.bytes` 文件的 GZip 压缩。与 `--bytes` 一起使用。
+- `--vkv-no-compress`：禁用 VKV 二进制文件的 Zstandard 压缩。与 `--vkv` 一起使用。
 
-- `--bytes-csv=<csvFolder>`：不运行本地化（Ink 处理）流程，而是将指定文件夹中找到的所有 CSV 文件转换为 KVStreamer `.bytes` 文件。默认会递归搜索子目录。示例 `--bytes-csv=output/`。
+- `--vkv-table-prefix=<prefix>`：为 VKV 数据库中的所有表名添加前缀。例如 `--vkv-table-prefix=loc_`。
 
-- `--bytes-csv-out=<outFolder>`：与 `--bytes-csv` 配合使用，指定生成的 `.bytes` 文件写入的输出文件夹。如果省略，则 `.bytes` 文件会写入到源 CSV 所在的同一文件夹。
+- `--vkv-csv=<csvFolder>`：不运行本地化（Ink 处理）流程，而是将指定文件夹中找到的所有 CSV 文件转换为 VKV `.vkv` 文件。默认会递归搜索子目录。示例 `--vkv-csv=output/`。
 
-- `--only-csv-to-bytes`：仅运行 CSV→`.bytes` 转换并退出（跳过处理 Ink 文件）。与 `--bytes-csv` 以及可选的 `--bytes-csv-out` 一起使用。
+- `--vkv-csv-out=<outFolder>`：与 `--vkv-csv` 配合使用，指定生成的 `.vkv` 文件写入的输出文件夹。如果省略，则 `.vkv` 文件会写入到源 CSV 所在的同一文件夹。
+
+- `--only-csv-to-vkv`：仅运行 CSV→`.vkv` 转换并退出（跳过处理 Ink 文件）。与 `--vkv-csv` 以及可选的 `--vkv-csv-out` 一起使用。
 
 说明：
-- 对于 `--bytes-csv`，CSV 的查找默认是递归的（工具使用 `SearchOption.AllDirectories`）。如果需要非递归行为，请将转换目标指定为仅包含要转换 CSV 的单一文件夹。
-- 在没有使用 `--bytes-csv` 的情况下，`--bytes` 会在正常的本地化运行中基于产生的 CSV 输出生成 `.bytes` 文件。
+- 对于 `--vkv-csv`，CSV 的查找默认是递归的（工具使用 `SearchOption.AllDirectories`）。如果需要非递归行为，请将转换目标指定为仅包含要转换 CSV 的单一文件夹。
+- 在没有使用 `--vkv-csv` 的情况下，`--vkv` 会在正常的本地化运行中基于产生的 CSV 输出生成 `.vkv` 文件。
 
 - `--retag`：重新生成所有本地化标签 ID，而不是保留旧 ID。
 
@@ -114,7 +116,7 @@ Ink 仍然非常强大，我们将其用于许多其他流程用例。但出于�
 ## 开发中使用
 照常开发你的 Ink！将其视为你游戏的"主副本"，流程和主要语言内容的来源。
 
-使用 LocaliserTool 为你的 Ink 文件添加 ID 并提取内容文件。根据需要为你的游戏翻译该文件。请记住，每次更改 Ink 文件时，你都可以重新运行 LocaliserTool，一切都将被更新。
+使用 InkTagger 为你的 Ink 文件添加 ID 并提取内容文件。根据需要为你的游戏翻译该文件。请记住，每次更改 Ink 文件时，你都可以重新运行 InkTagger，一切都将被更新。
 
 在运行时，加载你的 Ink 内容，并加载相应的 JSON 或 CSV（应取决于你的本地化）。
 
@@ -181,7 +183,7 @@ ID 的构造如下：
 这主要是为了在开发过程中轻松确定一行源自 Ink 文件中的哪个位置 - 它相当任意，所以可以安全地移动 ID 而不会更改（即使查找随后会没有帮助）。如果你想要一些更适合你移动一行位置的东西，你总是可以删除一个 ID 并让它重新生成。
 
 ## 发布版本
-你可以在[这里](https://github.com/Binaryinject/Ink-Localiser/releases)找到各种平台的发布版本。
+你可以在[这里](https://github.com/Binaryinject/InkTagger/releases)找到各种平台的发布版本。
 
 如果你想能够将其作为工具链的一部分通过 DLL 访问，也有一个 Lib 版本。DLL 依赖于 Inkle 的 `ink_compiler.dll` 和 `ink-engine-runtime.dll`。
 

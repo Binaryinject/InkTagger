@@ -35,7 +35,7 @@ foreach (var arg in args)
     else if (arg.Equals("--only-csv-to-vkv"))
         onlyCsvToVkv = true;
     else if (arg.Equals("--help") || arg.Equals("-h")) {
-        Console.WriteLine("Ink Localiser");
+        Console.WriteLine("InkTagger");
         Console.WriteLine("Arguments:");
         Console.WriteLine("  --folder=<folder> - Root folder to scan for Ink files to localise, relative to working dir.");
         Console.WriteLine("                      e.g. --folder=inkFiles/");

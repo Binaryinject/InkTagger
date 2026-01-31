@@ -7,7 +7,7 @@
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/LocaliserTool/LocaliserTool.csproj"
+                "${workspaceFolder}/InkTagger/InkTagger.csproj"
             ],
             "problemMatcher": "$msCompile"
         }

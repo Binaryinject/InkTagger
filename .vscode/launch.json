@@ -5,13 +5,13 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "C#: LocaliserTool",
+            "name": "C#: InkTagger",
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
-            "program": "${workspaceFolder}/LocaliserTool/bin/Debug/net8.0/osx-arm64/LocaliserTool.dll",
+            "program": "${workspaceFolder}/InkTagger/bin/Debug/net8.0/osx-arm64/InkTagger.dll",
             "args": ["--test"],
-            "cwd": "${workspaceFolder}/LocaliserTool",
+            "cwd": "${workspaceFolder}/InkTagger",
             "stopAtEntry": false,
             "console": "internalConsole"
         }

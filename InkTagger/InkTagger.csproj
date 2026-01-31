@@ -14,7 +14,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../LocaliserLib/LocaliserLib.csproj" />
+    <ProjectReference Include="../InkTaggerLib/InkTaggerLib.csproj" />
   </ItemGroup>
 
 </Project>
