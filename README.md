@@ -1,96 +1,136 @@
 # InkTagger
 
-[English](README.md) | [中文](README.zh-CN.md)
+[English](README.en.md) | [中文](README.md)
 
-**A simple tool to make it easier to localise or attach voice lines to Ink projects.**
+**一个简单的工具，帮助 Ink 项目实现本地化和语音配音。**
 
 ![Tagged Ink File](docs/demo-tagged.png)
 
 ![Generated CSV File](docs/demo-csv.png)
 
-## Contents
-- [Overview](#overview)
-- [Command-Line Tool](#command-line-tool)
-- [Limitations](#limitations)
-- [Use in Development](#use-in-development)
-- [The ID format](#the-id-format)
-- [Releases](#releases)
-- [Caveats](#caveats)
-- [Under the Hood](#under-the-hood)
-- [Acknowledgements](#acknowledgements)
-- [License and Attribution](#license-and-attribution)
+## 目录
+- [概述](#概述)
+- [命令行工具](#命令行工具)
+- [VKV 数据库](#vkv-数据库)
+- [限制](#限制)
+- [开发流程](#开发流程)
+- [ID 格式](#id-格式)
+- [发布版本](#发布版本)
+- [注意事项](#注意事项)
+- [技术实现](#技术实现)
+- [相关项目](#相关项目)
+- [致谢](#致谢)
+- [许可证](#许可证)
 
-## Overview
+## 概述
 
-Inkle's Ink language is a great flow language for stitching together narrative-based games.
+Inkle 的 Ink 是一门优秀的叙事脚本语言，非常适合制作分支剧情游戏。
 
-Because it's designed to mash small fragments of text together, it's not designed for localisation, or for associating lines of spoken audio to the source file.
+Ink 的设计初衷是拼接文本片段，因此原生并不支持本地化，也没有将语音文件与文本行关联的机制。
 
-But many studios don't use the more advanced text-manipulation features of Ink - they just use it for creating a flow of complete lines of text. It's a great solution for titles that care about branching dialogue. This means there's a problem - how do you translate each line? And how do you play the right audio for each line?
+但实际上，很多工作室只是用 Ink 来编写完整的对话文本，并不使用高级的文本拼接功能。这就带来了一个问题：怎么翻译这些文本？怎么播放对应的配音？
 
-This tool takes a set of raw ink files, scans them for lines of text, and generates a localisation ID to associate with each line. It writes the ink files back out again with these IDs in the form of Ink tags at the end of each line.
+本工具会扫描 Ink 文件，为每行文本生成唯一的本地化 ID，并以标签形式写回文件末尾。这样，每行文本都有了唯一标识，可以用于本地化查询或触发对应的语音。
 
-This means that every line of meaningful text in the Ink file now has a unique ID attached, as a tag. That means you can use that ID for localisation or for triggering the correct audio.
+以 `@` 开头的行会被忽略，不会生成 ID。可以用来标记命令行或元数据。
 
-The tool also optionally exports CSV or JSON files containing the IDs and their associated text content from all the processed Ink files - which can then be used as a basis for localisation.
+工具还支持导出 CSV 或 JSON 文件，包含所有 ID 和对应文本，方便翻译工作。
 
-Each time the tool is run, it preserves the old IDs, just adding them to any newly appeared lines.
+每次运行时，工具会保留已有的 ID，只为新增的文本行生成新 ID。
 
-So for example, take this source file:
+举个例子，原始文件：
 ![Source Ink File](docs/demo-plain.png)
 
-After the tool is run, the source file is rewritten like this:
+处理后变成：
 ![Tagged Ink File](docs/demo-tagged.png)
 
-It also creates an optional CSV file like so:
+同时生成 CSV 文件：
 ![Generated CSV File](docs/demo-csv.png)
 
-And an optional JSON file like so:
+以及 JSON 文件：
 ![Generated JSON File](docs/demo-json.png)
 
-## Command-Line Tool
-This is a command-line utility with a few arguments. A few simple examples:
+## 命令行工具
 
-Look for every Ink file in the `inkFiles` folder, process them for IDs, and output the data in the file `output/strings.json`:
+几个简单示例：
+
+扫描 `inkFiles` 文件夹下所有 Ink 文件，生成 ID 并导出到 `output/strings.json`：
 
 `InkTagger.exe --folder=inkFiles/ --json=output/strings.json`
 
-Look for every Ink file starting with `start` in the `inkFiles` folder, process them for IDs, and output the data in the file `output/strings.csv`:
+扫描 `inkFiles` 文件夹下以 `start` 开头的 Ink 文件，导出到 `output/strings.csv`：
 
 `InkTagger.exe --folder=inkFiles/ --filePattern=start*.ink --csv=output/strings.csv`
 
-### Arguments
+### 参数说明
 
-- `--folder=<folder>`: Root folder to scan for Ink files to localise (relative to working dir). e.g. `--folder=inkFiles/`. Default is the current working dir.
+- `--folder=<folder>`：Ink 文件所在的根目录（相对路径）。默认为当前目录。
 
-- `--filePattern=<pattern>`: File pattern to match Ink files (e.g. `--filePattern=start-*.ink`). Default is `*.ink`.
+- `--filePattern=<pattern>`：文件匹配模式，如 `--filePattern=start-*.ink`。默认为 `*.ink`。
 
-- `--csv=<csvFile>`: Path to a CSV file to export all the strings to (relative to working dir). e.g. `--csv=output/strings.csv`. Default is empty (no CSV).
+- `--csv=<csvPath>`：CSV 导出路径，如 `--csv=output/strings.csv`。不指定则不导出。
 
-- `--json=<jsonFile>`: Path to a JSON file to export all the strings to (relative to working dir). e.g. `--json=output/strings.json`. Default is empty (no JSON).
+- `--json=<jsonPath>`：JSON 导出路径，如 `--json=output/strings.json`。不指定则不导出。
 
-- `--vkv=<path>`: Output folder for VKV `.vkv` database files. When used together with the normal localisation run, the tool will generate `.vkv` artifacts from the CSV data. Files use Zstandard page compression by default. VKV is a B+Tree based key-value database format optimized for read-only embedded use. e.g. `--vkv=output/`.
+- `--vkv=<path>`：VKV 数据库输出目录。配合本地化流程使用时，会基于 CSV 生成 `.vkv` 文件，默认启用 Zstandard 压缩。
 
-- `--vkv-no-compress`: Disable Zstandard compression for VKV binary files. Use together with `--vkv`.
+- `--vkv-no-compress`：禁用 VKV 的 Zstandard 压缩。
 
-- `--vkv-table-prefix=<prefix>`: Add a prefix to all table names in the VKV database. e.g. `--vkv-table-prefix=loc_`.
+- `--vkv-table-prefix=<prefix>`：为 VKV 表名添加前缀，如 `--vkv-table-prefix=loc_`。
 
-- `--vkv-csv=<csvFolder>`: Instead of running the Localiser pipeline, convert all CSV files found in the specified folder into VKV `.vkv` files. By default the tool searches folders recursively (all subdirectories). e.g. `--vkv-csv=output/`.
+- `--vkv-csv=<csvFolder>`：跳过 Ink 处理，直接将指定目录下的 CSV 文件转换为 VKV。默认递归搜索子目录。
 
-- `--vkv-csv-out=<outFolder>`: When using `--vkv-csv`, specify the output folder where the generated `.vkv` files will be written. If omitted, `.vkv` files are written next to their source CSV files (same folder).
+- `--vkv-csv-out=<outFolder>`：指定 VKV 输出目录。不指定则输出到 CSV 同级目录。
 
-- `--only-csv-to-vkv`: Run only the CSV→`.vkv` conversion and exit (skip processing Ink files). Use together with `--vkv-csv` and optionally `--vkv-csv-out`.
+- `--only-csv-to-vkv`：仅执行 CSV 转 VKV，跳过 Ink 处理。需配合 `--vkv-csv` 使用。
 
-Notes:
-- CSV discovery for `--vkv-csv` is recursive by default (the tool uses `SearchOption.AllDirectories`). If you need non-recursive behaviour, run the conversion against a single folder that contains only the CSVs you want to convert.
-- `--vkv` (without `--vkv-csv`) will generate `.vkv` as part of the normal localisation run (it uses the CSV output produced from the Ink files).
+说明：
+- `--vkv-csv` 默认递归搜索（使用 `SearchOption.AllDirectories`）。如需非递归，请指定只包含目标 CSV 的单一目录。
+- 单独使用 `--vkv`（不带 `--vkv-csv`）时，会在正常流程中基于生成的 CSV 产出 VKV 文件。
 
-- `--retag`: Regenerate all localisation tag IDs, rather than keep old IDs.
+- `--retag`：重新生成所有 ID，不保留旧 ID。
 
-- `--help`: Show this help.
+- `--help`：显示帮助。
 
-## Limitations
-As said above, Ink is fully capable of stitching together fragments of sentences, like so:
+## VKV 数据库
+
+### 简介
+
+VKV（Versioned Key-Value）是一种基于 B+Tree 的键值数据库格式，专为只读场景优化，非常适合游戏运行时的本地化数据存储。
+
+### 优势
+
+相比 CSV 或 JSON：
+
+- **查询快**：B+Tree 结构，O(log n) 时间复杂度，远快于线性搜索
+- **内存省**：按需加载，无需全量载入内存
+- **体积小**：内置 Zstandard 压缩
+- **只读优化**：专为不可变数据设计
+
+### 使用示例
+
+**本地化流程中同时生成 VKV：**
+```bash
+InkTagger.exe --folder=inkFiles/ --csv=output/strings.csv --vkv=output/
+```
+
+**单独将 CSV 转为 VKV：**
+```bash
+InkTagger.exe --only-csv-to-vkv --vkv-csv=localization/ --vkv-csv-out=output/
+```
+
+**生成无压缩的 VKV 并添加表前缀：**
+```bash
+InkTagger.exe --folder=inkFiles/ --csv=output/strings.csv --vkv=output/ --vkv-no-compress --vkv-table-prefix=loc_
+```
+
+### 文件结构
+
+每个 CSV 对应一个 `.vkv` 文件，表名取自文件名（可加前缀）。运行时用本地化 ID 作为 key 查询即可获取对应文本。
+
+## 限制
+
+Ink 支持文本片段拼接，例如：
 ```
 {shuffle:
 - Here is a sentence <>
@@ -104,107 +144,98 @@ that will end up saying the same thing.
     -> MonkeyBusiness
 ```
 
-This splicing of text fragments **is not supported by the Localiser**, as the Localiser is designed for two main use cases.
+**本工具不支持这种拼接**，原因如下：
 
-* **Producing strings for localisation**. It is really hard as a translator to work stitching text fragments together, as English works very differently from other languages. So if you want your game localised, text fragments are, in general, not a good idea.
-* **Producing strings for audio recording**. It is almost impossible to splice together different sections of sentences for an actor to say, so again, we shouldn't be using text fragments.
+* **本地化需求**：翻译拼接的文本片段非常困难，不同语言的语法结构差异很大。
+* **配音需求**：演员无法自然地朗读拼接的句子片段。
 
-Ink is still extremely powerful and we use it for lots of other flow use-cases. But for these reasons if you have multiple text fragments on a single line the Localiser will complain with an error.
+如果单行存在多个文本片段，工具会报错。
 
-(It should also complain for <> as well but I haven't got around to adding that behaviour.)
+（`<>` 的检测还没加，后续会补上。）
 
-## Use in Development
-Develop your Ink as normal! Treat that as the 'master copy' of your game, the source of truth for the flow and your primary language content.
+## 开发流程
 
-Use InkTagger to add IDs to your Ink file and to extract a file of the content. Get that file localised/translated as you need for your title. Remember that you can re-run InkTagger every time you alter your Ink files and everything will be updated.
+正常开发 Ink 脚本，把它当作游戏的主文本源。
 
-At runtime, load your Ink content, and also load the appropriate JSON or CSV (which should depend on your localisation). 
+用 InkTagger 为文本添加 ID 并导出翻译文件。每次修改 Ink 后重新运行即可，已有 ID 会保留。
 
-Use your Ink flow as normal, but when you progress the story instead of asking Ink for the text content at the current line or option, ask for the list of tags! 
+运行时加载 Ink 和对应语言的 JSON/CSV。推进剧情时，不要直接用 Ink 返回的文本，而是读取标签中的 ID，再从翻译文件中查询实际文本。同样的 ID 也可以用来触发对应的语音文件。
 
-Look for any tag starting with #id:, parse the ID from that tag yourself, and ask your CSV or JSON file for the actual string. You can use the same ID to trigger an appropriate voice line, if you've recorded one.
+简单说：**运行时只用 Ink 做流程控制，文本内容从外部文件读取。**
 
-In other words - during runtime, just use Ink for logic, not for content. Grab the tags from Ink, and use your external text file (or WAV filenames!) as appropriate for the relevant language.
-
-**Pseudocode**:
-```
+**伪代码：**
+```csharp
 var story = new Story(storyJsonAsset);
 var stringTable = new StringTable(tableCSVAsset);
 
 while (story.canContinue) {
+    story.Continue();
 
-    var textContent = story.Continue();
-    
-    // we Can actually IGNORE the textContent, we want the LOCALISED version, let's find it:
-
-    // This function looks for a tag like #id:Main_Intro_45EW
+    // 从标签中提取 ID，如 #id:Main_Intro_45EW
     var stringID = extractIDFromTags(story.currentTags);
 
-    var localisedTextContent = stringTable.GetStringByID(stringID);
+    // 用 ID 查询本地化文本
+    var localizedText = stringTable.GetStringByID(stringID);
+    DisplayText(localizedText);
 
-    // We use that localisedTextContent instead!
-    DisplayTextSomehow(localisedTextContent);
+    // 也可以用同一个 ID 播放语音
+    PlayAudio(stringID);
 
-    // We could also trigger some dialogue...
-    PlayAnAudioFileWithID(stringID);
-
-    // Now let's do choices
-    if(story.currentChoices.Count > 0)
-    {
-        for (int i = 0; i < story.currentChoices.Count; ++i) {
-            Choice choice = story.currentChoices [i];
-
-            var choiceText = choice.text;
-            // Again, we can IGNORE choiceText...
-
-            var choiceStringID = extractIDFromTags(choice.tags);
-
-            var localisedChoiceTextContent = stringTable.GetStringByID(choiceStringID);
-
-            // We use that localisedChoiceTextContent instead!
-            DisplayChoiceTextSomehow(localisedChoiceTextContent);
-
-        }
+    // 处理选项
+    foreach (var choice in story.currentChoices) {
+        var choiceID = extractIDFromTags(choice.tags);
+        var localizedChoice = stringTable.GetStringByID(choiceID);
+        DisplayChoice(localizedChoice);
     }
 }
 ```
 
+## ID 格式
 
-## The ID format
+ID 结构：`<filename>_<knot>(_<stitch>)_<code>`
 
-The IDs are constructed like this:
+* `filename`：Ink 文件名
+* `knot`：所在 knot 名称
+* `stitch`：所在 stitch 名称（如有）
+* `code`：4 位随机码，保证在当前 knot/stitch 内唯一
 
-`<filename>_<knot>(_<stitch>)_<code>`
+这种格式方便开发时定位文本来源。ID 一旦生成就不会变，即使移动了文本位置。如果想重新生成，删掉旧 ID 再运行工具即可。
 
-* `filename`: The root name of the Ink file this string is in.
-* `knot`: The name of the containing knot this string is in.
-* `stitch`: If this is inside a stitch, the name of that stitch
-* `code`: A four-character random code which will be unique to this knot or knot/stitch combination.
+## 发布版本
 
-This is mainly to make it easy during development to figure out where a line originated in the Ink files - it's fairly arbitrary, so IDs can be moved around safely without changing (even if the lookup will then be unhelpful). You can always delete an ID and let it regenerate if you want something more appropriate to the place where you've moved a line.
+各平台的发布版本在[这里](https://github.com/Binaryinject/InkTagger/releases)。
 
-## Releases
-You can find releases for various platforms [here](https://github.com/wildwinter/InkTagger/releases
-).
+也提供 Lib 版本，可作为 DLL 集成到工具链中。依赖 Inkle 的 `ink_compiler.dll` 和 `ink-engine-runtime.dll`。
 
-There's also a Lib version if you want to be able to access it via the DLL as part of your toolchain. The DLL depends on Inkle's `ink_compiler.dll` and `ink-engine-runtime.dll`.
+## 注意事项
 
-## Caveats
-This isn't very complicated or sophisticated, so your mileage may vary!
+这个工具比较简单，可能有未覆盖的边界情况。
 
-**WARNING**: This rewrites your `.ink` files! And it might break, you never know! It's always good practice to use version control in case a process eats your content, and this is another reason why!
+**警告**：工具会直接修改 `.ink` 文件！强烈建议使用版本控制。
 
-**Inky might not notice**: If for some reason you run this tool while Inky is open, Inky will probably not reload the rebuilt `.ink` file. Use Ctrl-R or CMD-R to reload the file Inky is working on.
+**Inky 不会自动刷新**：如果在 Inky 打开时运行工具，需要按 Ctrl-R（Mac 上是 CMD-R）手动刷新。
 
-## Under the Hood
-Developed in .NET / C#.
+## 技术实现
 
-The tool internally uses Inkle's **Ink Parser** to chunk up the ink file into useful tokens, then sifts through that for textual content. Be warned that this isn't tested in huge numbers of situations - if you spot any weirdness, let me sknow!
+使用 .NET / C# 开发。
 
-## Acknowledgements
-Obviously, huge thanks to [Inkle](https://www.inklestudios.com/) (and **Joseph Humfrey** in particular) for [Ink](https://www.inklestudios.com/ink/) and the ecosystem around it, it's made my life way easier.
+内部使用 Inkle 的 **Ink Parser** 解析文件，提取文本内容。测试覆盖有限，如果遇到问题欢迎反馈。
 
-## License and Attribution
-This is licensed under the MIT license - you should find it in the root folder. If you're successfully or unsuccessfully using this tool, I'd love to hear about it!
+## 相关项目
 
-You can find me [on Medium, here](https://wildwinter.medium.com/).
+- [InkCommandStyle](https://github.com/Binaryinject/InkCommandStyle) - VSCode 的 Ink 语法高亮插件，功能包括：
+  - 完整语法高亮：对话格式、选择标记、跳转符号、Knot/Stitch 定义、`@` 自定义命令等
+  - 智能跳转：Ctrl+点击跳转到 Knot/Stitch 定义
+  - 可视化调试面板：树形展示结构、选项统计、点击跳转源码
+  - 故事预览：交互式运行测试、自动隐藏 `@` 命令、实时更新
+  - 大纲视图：快速浏览文件结构
+
+## 致谢
+
+感谢 [Inkle](https://www.inklestudios.com/) 和 **Joseph Humfrey** 创造了 [Ink](https://www.inklestudios.com/ink/) 这么好用的工具。
+
+## 许可证
+
+MIT 许可证，详见根目录。欢迎反馈使用体验！
+
+作者 Medium：[wildwinter.medium.com](https://wildwinter.medium.com/)
