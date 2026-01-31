@@ -149,9 +149,7 @@ that will end up saying the same thing.
 * **本地化需求**：翻译拼接的文本片段非常困难，不同语言的语法结构差异很大。
 * **配音需求**：演员无法自然地朗读拼接的句子片段。
 
-如果单行存在多个文本片段，工具会报错。
-
-（`<>` 的检测还没加，后续会补上。）
+如果单行存在多个文本片段或使用了 `<>` 拼接，工具会报错。
 
 ## 开发流程
 
@@ -237,5 +235,3 @@ ID 结构：`<filename>_<knot>(_<stitch>)_<code>`
 ## 许可证
 
 MIT 许可证，详见根目录。欢迎反馈使用体验！
-
-作者 Medium：[wildwinter.medium.com](https://wildwinter.medium.com/)

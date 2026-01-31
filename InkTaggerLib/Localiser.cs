@@ -120,6 +120,20 @@ namespace InkLocaliser {
         private bool ProcessStory(Story story, string filePath) {
             HashSet<string> newFilesVisited = [];
 
+            // ---- Check for glue (<>) which we don't support ----
+            foreach (var glue in story.FindAll<Glue>()) {
+                if (glue.debugMetadata == null)
+                    continue;
+
+                var fileID = System.IO.Path.GetFileNameWithoutExtension(glue.debugMetadata.fileName);
+                if (_filesVisited.Contains(fileID))
+                    continue;
+
+                Console.Error.WriteLine(
+                    $"Error in file {fileID} line {glue.debugMetadata.startLineNumber} - glue (<>) detected, text splicing is not supported by the localiser.");
+                return false;
+            }
+
             // ---- Find all the things we should localise ----
             List<Text> validTextObjects = [];
             var lastLineNumber = -1;

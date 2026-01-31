@@ -149,9 +149,7 @@ This splicing of text fragments **is not supported by the Localiser**, as the Lo
 * **Producing strings for localisation**. It is really hard as a translator to work stitching text fragments together, as English works very differently from other languages. So if you want your game localised, text fragments are, in general, not a good idea.
 * **Producing strings for audio recording**. It is almost impossible to splice together different sections of sentences for an actor to say, so again, we shouldn't be using text fragments.
 
-Ink is still extremely powerful and we use it for lots of other flow use-cases. But for these reasons if you have multiple text fragments on a single line the Localiser will complain with an error.
-
-(It should also complain for <> as well but I haven't got around to adding that behaviour.)
+If a single line contains multiple text fragments or uses `<>` glue, the tool will report an error.
 
 ## Use in Development
 Develop your Ink as normal! Treat that as the 'master copy' of your game, the source of truth for the flow and your primary language content.
@@ -254,5 +252,3 @@ Obviously, huge thanks to [Inkle](https://www.inklestudios.com/) (and **Joseph H
 
 ## License and Attribution
 This is licensed under the MIT license - you should find it in the root folder. If you're successfully or unsuccessfully using this tool, I'd love to hear about it!
-
-You can find me [on Medium, here](https://wildwinter.medium.com/).
