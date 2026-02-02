@@ -164,7 +164,11 @@ that will end up saying the same thing.
 **伪代码：**
 ```csharp
 var story = new Story(storyJsonAsset);
-var stringTable = new StringTable(tableCSVAsset);
+
+// 加载 VKV 数据库
+var vkvPath = Path.Combine(Application.streamingAssetsPath, "strings.vkv");
+var database = await ReadOnlyDatabase.OpenFileAsync(vkvPath);
+var locTable = database.GetTable("your_table_name"); // 表名来自 Ink 文件名
 
 while (story.canContinue) {
     story.Continue();
@@ -172,8 +176,9 @@ while (story.canContinue) {
     // 从标签中提取 ID，如 #id:Main_Intro_45EW
     var stringID = extractIDFromTags(story.currentTags);
 
-    // 用 ID 查询本地化文本
-    var localizedText = stringTable.GetStringByID(stringID);
+    // 用 ID 查询本地化文本（直接使用字符串 key）
+    var valueBytes = locTable.Get(stringID);
+    var localizedText = Encoding.UTF8.GetString(valueBytes);
     DisplayText(localizedText);
 
     // 也可以用同一个 ID 播放语音
@@ -182,7 +187,8 @@ while (story.canContinue) {
     // 处理选项
     foreach (var choice in story.currentChoices) {
         var choiceID = extractIDFromTags(choice.tags);
-        var localizedChoice = stringTable.GetStringByID(choiceID);
+        var choiceBytes = locTable.Get(choiceID);
+        var localizedChoice = Encoding.UTF8.GetString(choiceBytes);
         DisplayChoice(localizedChoice);
     }
 }

@@ -165,9 +165,13 @@ Look for any tag starting with #id:, parse the ID from that tag yourself, and as
 In other words - during runtime, just use Ink for logic, not for content. Grab the tags from Ink, and use your external text file (or WAV filenames!) as appropriate for the relevant language.
 
 **Pseudocode**:
-```
+```csharp
 var story = new Story(storyJsonAsset);
-var stringTable = new StringTable(tableCSVAsset);
+
+// Load VKV database
+var vkvPath = Path.Combine(Application.streamingAssetsPath, "strings.vkv");
+var database = await ReadOnlyDatabase.OpenFileAsync(vkvPath);
+var locTable = database.GetTable("your_table_name"); // Table name derived from Ink filename
 
 while (story.canContinue) {
 
@@ -178,7 +182,9 @@ while (story.canContinue) {
     // This function looks for a tag like #id:Main_Intro_45EW
     var stringID = extractIDFromTags(story.currentTags);
 
-    var localisedTextContent = stringTable.GetStringByID(stringID);
+    // Query localized text using string key directly
+    var valueBytes = locTable.Get(stringID);
+    var localisedTextContent = Encoding.UTF8.GetString(valueBytes);
 
     // We use that localisedTextContent instead!
     DisplayTextSomehow(localisedTextContent);
@@ -197,7 +203,8 @@ while (story.canContinue) {
 
             var choiceStringID = extractIDFromTags(choice.tags);
 
-            var localisedChoiceTextContent = stringTable.GetStringByID(choiceStringID);
+            var choiceBytes = locTable.Get(choiceStringID);
+            var localisedChoiceTextContent = Encoding.UTF8.GetString(choiceBytes);
 
             // We use that localisedChoiceTextContent instead!
             DisplayChoiceTextSomehow(localisedChoiceTextContent);
