@@ -98,6 +98,8 @@ Ink 的设计初衷是拼接文本片段，因此原生并不支持本地化，�
 
 VKV（Versioned Key-Value）是一种基于 B+Tree 的键值数据库格式，专为只读场景优化，非常适合游戏运行时的本地化数据存储。
 
+项目地址：[hadashiA/VKV](https://github.com/hadashiA/VKV)
+
 ### 优势
 
 相比 CSV 或 JSON：

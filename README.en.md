@@ -99,6 +99,8 @@ Notes:
 
 VKV (Versioned Key-Value) is a B+Tree based key-value database format optimized for read-only embedded use. It provides an efficient way to store and retrieve localization strings at runtime, especially suitable for game engines and embedded systems.
 
+Project repository: [hadashiA/VKV](https://github.com/hadashiA/VKV)
+
 ### Why Use VKV?
 
 Compared to CSV or JSON formats, VKV offers several advantages:
