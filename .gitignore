@@ -400,3 +400,6 @@ FodyWeavers.xsd
 
 # inklecate binary: redundant (ink is used via DLLs) and exceeds GitHub 100MB limit
 Lib/Inklecate/inklecate
+
+# InkTagger scratch output: test runs, project-side backups, publish staging
+output/

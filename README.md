@@ -11,6 +11,7 @@
 ## 目录
 - [概述](#概述)
 - [命令行工具](#命令行工具)
+- [多语言同步](#多语言同步)
 - [DryDB 数据库](#drydb-数据库)
 - [限制](#限制)
 - [开发流程](#开发流程)
@@ -70,6 +71,18 @@ Ink 的设计初衷是拼接文本片段，因此原生并不支持本地化，�
 
 - `--csv=<csvPath>`：CSV 导出路径，如 `--csv=output/strings.csv`。不指定则不导出。
 
+- `--csv-sync`：把结果**合并**进 `--csv` 目录里已有的 CSV，而不是整体覆盖：已存在 ID 保留原有文本、新 ID 追加、Ink 中已删除的 ID 移除。
+
+- `--csv-root=<folder>`：多语言导出根目录，结构为 `<root>/<语言>/<章节>.csv`。指定后用**一次 Ink 解析**导出全部语言，比每种语言跑一遍快得多。
+
+- `--csv-source=<language>`：源语言目录名（配合 `--csv-root`）。该目录整体覆盖写入，同时充当下一轮判断的基准；其余语言做合并以保留已有译文。
+
+- `--csv-languages=<a,b,c>`：配合 `--csv-root` 要导出的全部语言（含源语言），如 `chinesesimplified,english,thai`。不存在的语言目录会自动创建并填满源文占位；不指定时自动扫描 `<root>` 下已有的语言目录。
+
+- `--csv-sync-hold`：配合 `--csv-root` 的安全模式：不自动更新仍是源文副本的格子，只在报告里列出。
+
+- `--sync-report=<path>`：把 `--csv-root` 的合并明细写成 CSV（语言、动作、章节、ID、旧源文、新源文、当前值）。默认只在标准输出打印摘要。
+
 - `--json=<jsonPath>`：JSON 导出路径，如 `--json=output/strings.json`。不指定则不导出。
 
 - `--drydb=<path>`：DryDB 数据库输出目录。配合本地化流程使用时，会基于 CSV 生成 `.drydb` 文件，默认启用 Zstandard 压缩。
@@ -82,6 +95,10 @@ Ink 的设计初衷是拼接文本片段，因此原生并不支持本地化，�
 
 - `--drydb-csv-out=<outFolder>`：指定 DryDB 输出目录。不指定则输出到 CSV 同级目录。
 
+- `--drydb-split`：CSV 转 DryDB 时，每个 CSV（即一个章节）单独产出一个 `strings_<章节>.drydb`，而不是合并成单个 `strings.drydb`。这样只改一章时只重建那一个文件。
+
+- `--drydb-csv-filter=<pattern>`：只转换文件名匹配的 CSV，如 `Chapter1.csv`。配合 `--drydb-split` 可只重建那一章的数据库。默认为 `*.csv`。
+
 - `--only-csv-to-drydb`：仅执行 CSV 转 DryDB，跳过 Ink 处理。需配合 `--drydb-csv` 使用。
 
 说明：
@@ -91,6 +108,105 @@ Ink 的设计初衷是拼接文本片段，因此原生并不支持本地化，�
 - `--retag`：重新生成所有 ID，不保留旧 ID。
 
 - `--help`：显示帮助。
+
+## 多语言同步
+
+### 目录结构
+
+每种语言一个子目录，目录名就是语言标识；每个 Ink 文件（章节）在语言目录里对应一份 CSV，格式与普通导出一致（`ID,Text`）：
+
+```
+Assets/_StaticGroups/Ink/
+├── Chapter0.ink
+├── Chapter1.ink
+└── csv/
+    ├── chinesesimplified/     # 源语言：整目录覆盖写入，同时充当下一轮的判断基准
+    │   ├── Chapter0.csv
+    │   └── Chapter1.csv
+    ├── chinesetraditional/    # 译文目录：只做合并，人工内容永不覆盖
+    │   ├── Chapter0.csv
+    │   └── Chapter1.csv
+    ├── english/
+    ├── japanese/
+    ├── korean/
+    └── thai/
+```
+
+语言目录名建议与 Unity 的 `SystemLanguage` 枚举名小写一致（如 `chinesesimplified`、`english`）；它同时也是 DryDB 的表名前缀。
+
+### 一次导出全部语言
+
+```bash
+InkTagger.exe --folder=./ --csv-root=./csv --csv-source=chinesesimplified \
+  --csv-languages=chinesesimplified,chinesetraditional,english,japanese,korean,thai
+```
+
+只处理某一章时加上 `--filePattern`：
+
+```bash
+InkTagger.exe --folder=./ --filePattern=Chapter1.ink --csv-root=./csv --csv-source=chinesesimplified \
+  --csv-languages=chinesesimplified,chinesetraditional,english,japanese,korean,thai
+```
+
+每次调用只解析一遍 Ink，语言数量不会成倍增加耗时。缺失的语言目录会自动创建并填满源文占位，新增语言不需要手工建目录。
+
+### 怎么识别「人工译文」和「没翻译的占位」
+
+ID 稳定只能说明"还是同一行"，不能说明格子里是不是人工翻译过的内容。判断依据是**源语言目录本身**——它保存着上一次运行时的源文，也就是天然的快照基准：
+
+| 格子里的内容 | 判定 | 处理 |
+| --- | --- | --- |
+| 不存在 / 为空 | 新条目 | 填入当前源文（占位） |
+| 等于**当前**源文 | 未翻译 | 保持同步，不动 |
+| 等于**上一版**源文（源语言目录里的旧值） | 没翻译过的占位 | 更新为当前源文 |
+| 其余 | 人工译文 | **永远保留**，若源文已改动则列进报告 |
+| Ink 里已经没有这个 ID | 已删除 | 从 CSV 中移除，并列进报告 |
+
+以「你好 → 你好啊」为例：简体中文目录更新为 `你好啊`；英文格子若是 `Hello` 则保留，若是 `你好`（当初复制的占位）则跟随变成 `你好啊`。
+
+摘要示例：
+
+```
+Sync summary [english]: kept 15, followed 2
+```
+
+含义：`kept` 保留了 15 条人工译文，`followed` 有 2 条占位跟随了新源文。除此之外还可能出现 `new`（新增）、`filled`（空格子填占位）、`removed`（Ink 中已删除）、`held`（安全模式下扣住不跟随）。
+
+查看逐条明细：
+
+```bash
+InkTagger.exe --folder=./ --csv-root=./csv --csv-source=chinesesimplified \
+  --csv-languages=chinesesimplified,english --sync-report=./sync-report.csv
+```
+
+想先审阅再让占位跟随，用安全模式 `--csv-sync-hold`：不自动改任何格子，只把"仍是占位但源文已变"的条目列进报告。
+
+### 生成运行时数据库
+
+```bash
+# 全量：每章一个 strings_<章节>.drydb，内含该章所有语言的表
+InkTagger.exe --only-csv-to-drydb --drydb-csv=./csv --drydb-csv-out=../../StreamingAssets --drydb-split
+
+# 只重建某一章
+InkTagger.exe --only-csv-to-drydb --drydb-csv=./csv --drydb-csv-out=../../StreamingAssets \
+  --drydb-split --drydb-csv-filter=Chapter1.csv
+```
+
+表名规则：CSV 所在的相对目录 + 文件名，即 `csv/english/Chapter1.csv` → 表 `english_Chapter1`、文件 `strings_Chapter1.drydb`。运行时按当前语言取表即可：
+
+```csharp
+var database = await ReadOnlyDatabase.OpenFileAsync($"{Application.streamingAssetsPath}/strings_{chapter}.drydb");
+var table = database.GetTable($"{language}_{chapter}");   // 如 english_Chapter1
+var text = Encoding.UTF8.GetString(table.Get(stringID));
+```
+
+### 注意事项
+
+- **首次接入**：如果语言目录里的 CSV 是历史遗留的（源文改过、但用旧版本工具跑过），那些"已经不是当前源文、又确实是没翻译的旧占位"的格子无法被自动识别，会被当作译文保留。跑一次后基准就建立好了，之后的改动都能正确跟随。
+- **与源文完全相同的译文**（专有名词、数字、同形词）：内容与源文一致时会被按"未翻译"处理，源文改动时会跟随。需要锁定的内容请先让它与源文不同，或使用 `--csv-sync-hold`。
+- **重新翻译**：把格子清空即可，下次运行会重新填入当前源文并视为未翻译。
+- **删除语义**：Ink 中删掉的行会从所有语言的 CSV 中移除，译文不会以孤儿形式留存（与 `--csv-sync` 的行为一致），译文历史请依赖版本控制。
+- 源文未改动、译文未改动时，工具**不会**重写文件内容（输出与现有文件逐字节一致），SVN/Git 不会产生无意义 diff。
 
 ## DryDB 数据库
 

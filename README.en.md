@@ -11,6 +11,7 @@
 ## Contents
 - [Overview](#overview)
 - [Command-Line Tool](#command-line-tool)
+- [Multi-Language Sync](#multi-language-sync)
 - [DryDB Database](#drydb-database)
 - [Limitations](#limitations)
 - [Use in Development](#use-in-development)
@@ -71,6 +72,18 @@ Look for every Ink file starting with `start` in the `inkFiles` folder, process 
 
 - `--csv=<csvFile>`: Path to a CSV file to export all the strings to (relative to working dir). e.g. `--csv=output/strings.csv`. Default is empty (no CSV).
 
+- `--csv-sync`: Merge into the CSV folder given by `--csv` instead of overwriting it: keep the text already stored for existing IDs, add new IDs, drop IDs that disappeared from the Ink.
+
+- `--csv-root=<folder>`: Export one CSV folder per language under this root: `<root>/<language>/<chapter>.csv`. The Ink is parsed only once for every language, far cheaper than one run per language.
+
+- `--csv-source=<language>`: Source language for `--csv-root`. It is written with a full overwrite and doubles as the baseline for the next run; every other language is merged so existing translations survive.
+
+- `--csv-languages=<a,b,c>`: Every language to export with `--csv-root`, source language included, e.g. `chinesesimplified,english,thai`. A language folder that does not exist yet is created and filled with the source text. Default: scan the root for existing language folders.
+
+- `--csv-sync-hold`: Safe mode for `--csv-root`: never update a cell that is still a copy of the source text, only report it.
+
+- `--sync-report=<path>`: Write a CSV report of everything `--csv-root` merged (language, action, chapter, ID, old source, new source, current value). Default: summary on stdout only.
+
 - `--json=<jsonFile>`: Path to a JSON file to export all the strings to (relative to working dir). e.g. `--json=output/strings.json`. Default is empty (no JSON).
 
 - `--drydb=<path>`: Output folder for DryDB `.drydb` database files. When used together with the normal localisation run, the tool will generate `.drydb` artifacts from the CSV data. Files use Zstandard page compression by default. e.g. `--drydb=output/`.
@@ -83,6 +96,10 @@ Look for every Ink file starting with `start` in the `inkFiles` folder, process 
 
 - `--drydb-csv-out=<outFolder>`: When using `--drydb-csv`, specify the output folder where the generated `.drydb` files will be written. If omitted, `.drydb` files are written next to their source CSV files (same folder).
 
+- `--drydb-split`: Write one `strings_<chapter>.drydb` per CSV (chapter) instead of a single `strings.drydb`, so rebuilding one chapter only rewrites that file.
+
+- `--drydb-csv-filter=<pattern>`: Only convert CSV files whose file name matches this pattern (e.g. `Chapter1.csv`). Combined with `--drydb-split` this rebuilds just that chapter's database. Default: `*.csv`.
+
 - `--only-csv-to-drydb`: Run only the CSV→`.drydb` conversion and exit (skip processing Ink files). Use together with `--drydb-csv` and optionally `--drydb-csv-out`.
 
 Notes:
@@ -92,6 +109,120 @@ Notes:
 - `--retag`: Regenerate all localisation tag IDs, rather than keep old IDs.
 
 - `--help`: Show this help.
+
+## Multi-Language Sync
+
+### Folder layout
+
+One sub-folder per language; the folder name is the language. Each Ink file (chapter) maps to one CSV
+inside the language folder, using the same `ID,Text` layout as the normal export:
+
+```
+Assets/_StaticGroups/Ink/
+├── Chapter0.ink
+├── Chapter1.ink
+└── csv/
+    ├── chinesesimplified/     # source language: overwritten on every run, doubles as the baseline
+    │   ├── Chapter0.csv
+    │   └── Chapter1.csv
+    ├── chinesetraditional/    # translation folders: merged only, human text is never overwritten
+    │   ├── Chapter0.csv
+    │   └── Chapter1.csv
+    ├── english/
+    ├── japanese/
+    ├── korean/
+    └── thai/
+```
+
+The folder name is both the language code and the DryDB table prefix, so keeping it equal to a lower
+case Unity `SystemLanguage` name (`chinesesimplified`, `english`, ...) keeps everything aligned.
+
+### Export every language in one run
+
+```bash
+InkTagger.exe --folder=./ --csv-root=./csv --csv-source=chinesesimplified \
+  --csv-languages=chinesesimplified,chinesetraditional,english,japanese,korean,thai
+```
+
+For a single chapter add `--filePattern`:
+
+```bash
+InkTagger.exe --folder=./ --filePattern=Chapter1.ink --csv-root=./csv --csv-source=chinesesimplified \
+  --csv-languages=chinesesimplified,chinesetraditional,english,japanese,korean,thai
+```
+
+The Ink is parsed once per call, so the cost does not multiply with the number of languages. A language
+folder that does not exist yet is created and filled with placeholders.
+
+### How a translation is told apart from an untranslated placeholder
+
+A stable ID only proves it is still the same line, not that the cell holds human content. The baseline is
+the **source language folder itself** - it holds the source text of the previous run:
+
+| Cell content | Verdict | What happens |
+| --- | --- | --- |
+| missing / empty | new entry | filled with the current source text |
+| equals the **current** source text | untranslated | kept in sync, no write |
+| equals the **previous** source text (what the source folder had) | never translated | updated to the current source text |
+| anything else | human translation | **always kept**, reported when the source changed |
+| ID gone from the Ink | removed | dropped from the CSV and listed in the report |
+
+For "你好 → 你好啊": the simplified Chinese folder becomes `你好啊`; an English cell holding `Hello` is kept,
+an English cell still holding `你好` follows to `你好啊`.
+
+Summary output:
+
+```
+Sync summary [english]: kept 15, followed 2
+```
+
+`kept` = human translations preserved, `followed` = placeholders that followed the new source text.
+Other actions: `new`, `filled`, `removed`, and `held` (safe mode refused to update).
+
+Per-entry detail:
+
+```bash
+InkTagger.exe --folder=./ --csv-root=./csv --csv-source=chinesesimplified \
+  --csv-languages=chinesesimplified,english --sync-report=./sync-report.csv
+```
+
+To review before anything is updated, use the safe mode `--csv-sync-hold`: no cell is modified, and
+"still a placeholder but the source changed" is only reported.
+
+### Build the runtime database
+
+```bash
+# full rebuild: one strings_<chapter>.drydb per chapter, holding every language of that chapter
+InkTagger.exe --only-csv-to-drydb --drydb-csv=./csv --drydb-csv-out=../../StreamingAssets --drydb-split
+
+# rebuild a single chapter only
+InkTagger.exe --only-csv-to-drydb --drydb-csv=./csv --drydb-csv-out=../../StreamingAssets \
+  --drydb-split --drydb-csv-filter=Chapter1.csv
+```
+
+Table names come from the CSV path: `csv/english/Chapter1.csv` becomes table `english_Chapter1` inside
+`strings_Chapter1.drydb`, which is exactly what the runtime looks up:
+
+```csharp
+var database = await ReadOnlyDatabase.OpenFileAsync($"{Application.streamingAssetsPath}/strings_{chapter}.drydb");
+var table = database.GetTable($"{language}_{chapter}");   // e.g. english_Chapter1
+var text = Encoding.UTF8.GetString(table.Get(stringID));
+```
+
+### Caveats
+
+- **Bringing an existing table in**: if a language CSV is historical (written by an older tool after the
+  source text had already changed), a cell that is neither the current source text nor a fresh copy cannot
+  be recognised as a placeholder and is kept as a translation. One run establishes the baseline and later
+  edits are classified correctly.
+- **Translations identical to the source text** (proper nouns, numbers, shared glyphs): a cell equal to the
+  source text counts as untranslated and will follow source edits. Make such a cell differ from the source
+  text, or use `--csv-sync-hold`.
+- **Re-translating**: clear the cell; the next run fills it with the current source text again.
+- **Removal semantics**: lines dropped from the Ink are removed from every language CSV, the same as
+  `--csv-sync`; rely on version control for translation history.
+- When neither the source text nor a translation changed, the tool does not rewrite the file at all
+  (byte-identical output), so SVN/Git sees no diff.
 
 ## DryDB Database
 

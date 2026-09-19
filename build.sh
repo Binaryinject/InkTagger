@@ -2,8 +2,8 @@
 
 rm -rf ./publish/*
 
-version="0.0.1.1"
-targets=("osx-arm64" "osx-x64" "win-x86" "win-x64")
+version="0.2.0"
+targets=("osx-arm64" "osx-x64" "linux-x64" "win-x86" "win-x64")
 
 for target in "${targets[@]}"; do
 
@@ -11,7 +11,7 @@ for target in "${targets[@]}"; do
     dotnet publish -c Release -r ${target} -o ../publish/${target}
     cd ..
 
-    rm ./publish/${target}/*.pdb
+    rm -f ./publish/${target}/*.pdb
     cp ./LICENSE ./publish/${target}
     cp ./README.md ./publish/${target}
     cp -r ./docs ./publish/${target}
@@ -22,8 +22,8 @@ for target in "${targets[@]}"; do
 
 done
 
-mkdir ./publish/dll
-cp ./InkTaggerLib/bin/Release/net8.0/InkTaggerLib.dll ./publish/dll
+mkdir -p ./publish/dll
+cp ./InkTaggerLib/bin/Release/net10.0/InkTaggerLib.dll ./publish/dll
 cp ./LICENSE ./publish/dll
 
 cd ./publish/dll
